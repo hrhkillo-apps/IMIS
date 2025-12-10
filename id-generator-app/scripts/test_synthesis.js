@@ -1,11 +1,13 @@
+/* eslint-env node */
 // Mock localStorage
+/* eslint-disable no-undef */
 global.localStorage = {
     getItem: () => "0",
     setItem: () => { }
 };
 
-import { analyzeContext } from './src/utils/dataAnalyzer.js';
-import { synthesizeRows } from './src/utils/dataSynthesizer.js';
+import { analyzeContext } from '../src/utils/dataAnalyzer.js';
+import { synthesizeRows } from '../src/utils/dataSynthesizer.js';
 
 // Mock Data
 const headers = ["ID", "Name", "District", "Mandal", "Category", "Ticket Number"];

@@ -61,7 +61,7 @@ export const generateValidAadhar = (count) => {
     const list = [];
     for (let i = 0; i < count; i++) {
         // Generate 11 random digits
-        let num = Math.floor(Math.random() * 90000000000) + 10000000000;
+        // Generate 11 random digits
         // Ideally ensure first digit is not 0 or 1 per some rules, but standard random 11 digit is fine usually.
         // Actually Aadhar doesn't start with 0 or 1 usually. Let's use 2-9 range for first digit.
         const firstObj = Math.floor(Math.random() * 8) + 2; // 2-9

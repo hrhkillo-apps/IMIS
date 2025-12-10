@@ -1,0 +1,18 @@
+export const REQUIRED_COLUMNS = [
+    "District", "Mandal", "Grampanchayat", "Benificiary Name",
+    "IMIS Id", "Beneficiary Category", "Beneficiary Type",
+    "Beneficiary Mobile Number", "Ration Card Number", "Ticket Number",
+    "Stage Level", "FTR Status", "FTR Number"
+];
+
+// Columns to clear
+export const CLEAR_COLUMNS = [
+    "Bank Account Number", "Bank Branch", "IFSC Code"
+];
+
+export const PREDEFINED_LINKS = [
+    { label: 'CFMS Bill Status', url: 'https://prdcfms.apcfss.in:44300/sap/bc/ui5_ui5/sap/zexp_billstatus/index.html?sap-client=%27%27' },
+    { label: 'Create Multiple Beneficiary Requests', url: 'https://prdcfms.apcfss.in:44300/sap/bc/ui5_ui5/sap/zexp_bf_mul_req/index.html' },
+    { label: 'SBM IMIS', url: 'https://sbm.gov.in/SBMPhase2/Secure/Entry/UserMenu.aspx' },
+    { label: 'SAC', url: 'https://sac.ap.gov.in/internal' }
+];
