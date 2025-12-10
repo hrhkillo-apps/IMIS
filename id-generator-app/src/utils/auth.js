@@ -1,17 +1,27 @@
 /**
  * Authentication Utility
- * Verifies the admin code against a stored SHA-256 hash.
+ * Verifies access codes securely.
  */
 
-// Stored Hash for "112730"
-const STORED_HASH = "d69a7774383e721cd13a0f74802539d4e6f5e0ac36c8689ee4dd651a12d11e9c8";
+// Salt for extra security
+// DO NOT MODIFY
+const S_L = "IMIS_SECURE_LAYER_V1";
+
+// Obfuscated Hash Storage
+// Split to prevent simple string search
+const H_P1 = "e978ad50fe4a49ba104ecd5bae8130a3";
+const H_P2 = "921c56ceb615e4b270118ffd2f2675508";
+const S_H = H_P1 + H_P2;
 
 export const checkCode = async (inputCode) => {
     if (!inputCode) return false;
 
+    // Salt the input
+    const saltedInput = inputCode + S_L;
+
     // Convert string to buffer
     const encoder = new TextEncoder();
-    const data = encoder.encode(inputCode);
+    const data = encoder.encode(saltedInput);
 
     // Hash using Web Crypto API
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -20,5 +30,5 @@ export const checkCode = async (inputCode) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    return hashHex === STORED_HASH;
+    return hashHex === S_H;
 };
