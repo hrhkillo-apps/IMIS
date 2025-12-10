@@ -28,11 +28,17 @@ export const checkCode = async (inputCode) => {
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 
     // Convert hash buffer to hex string
+    // Convert hash buffer to hex string
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    // Debug Log (To be removed after verify)
-    // console.log("Gen:", hashHex); 
+    console.log("--- DEBUG LOGIN ---");
+    console.log("Input Plain:", inputCode);
+    console.log("Input Salted:", saltedInput);
+    console.log("Generated Hash:", hashHex);
+    console.log("Target Hash:   ", S_H);
+    console.log("Match:", hashHex === S_H);
+    console.log("-------------------");
 
     return hashHex === S_H;
 };
