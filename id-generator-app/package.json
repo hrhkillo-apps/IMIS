@@ -1,6 +1,7 @@
 {
   "name": "imis-data-id-manager",
   "productName": "IMIS Data & ID Manager",
+  "homepage": "https://hrhkillo.github.io/id-generator-app",
   "private": true,
   "version": "0.0.0",
   "type": "module",
