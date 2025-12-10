@@ -9,10 +9,8 @@
 const S_L = "IMIS_SECURE_LAYER_V1";
 
 // Obfuscated Hash Storage
-// Split to prevent simple string search
-const H_P1 = "e978ad50fe4a49ba104ecd5bae8130a3";
-const H_P2 = "921c56ceb615e4b270118ffd2f2675508";
-const S_H = H_P1 + H_P2;
+// Obfuscated Hash Storage
+const S_H = "e978ad50fe4a49ba104ecd5bae8130a3921c56ceb615e4b270118ffd2f2675508";
 
 export const checkCode = async (inputCode) => {
     if (!inputCode) return false;
