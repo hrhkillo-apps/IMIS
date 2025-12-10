@@ -560,7 +560,8 @@ function App() {
           onRestore={handleRestore}
         />
       </div>
-      );
+    </ErrorBoundary>
+  );
 }
 
-      export default App;
+export default App;

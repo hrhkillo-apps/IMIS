@@ -1,4 +1,3 @@
-```javascript
 import React, { useState } from 'react';
 import { checkCode } from '../utils/auth';
 
@@ -52,21 +51,6 @@ const AdminLogin = ({ onLogin }) => {
             zIndex: 9999,
             backdropFilter: 'blur(10px)'
         }}>
-            <style>
-                {`
-@keyframes shake {
-    0 % { transform: translateX(0); }
-    25 % { transform: translateX(-10px); }
-    50 % { transform: translateX(10px); }
-    75 % { transform: translateX(-10px); }
-    100 % { transform: translateX(0); }
-}
-          .shake - animation {
-    animation: shake 0.3s ease -in -out;
-    border - color: #ff4444!important;
-}
-`}
-            </style>
             <div className="glass-panel" style={{ padding: '3rem', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
                 <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>
                     {success ? '✅ Access Granted' : 'Restricted Access'}
@@ -117,4 +101,3 @@ const AdminLogin = ({ onLogin }) => {
 };
 
 export default AdminLogin;
-```
