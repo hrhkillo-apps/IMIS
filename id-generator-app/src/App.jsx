@@ -7,6 +7,9 @@ import Header from './components/Header';
 import ExternalLinks from './components/ExternalLinks';
 import AadharModal from './components/AadharModal';
 import DataPreview from './components/DataPreview';
+import AdminLogin from './components/AdminLogin';
+import ErrorBoundary from './components/ErrorBoundary';
+import { enableProtection } from './utils/security';
 
 // Utils & Constants
 import { REQUIRED_COLUMNS } from './constants';
@@ -34,8 +37,20 @@ function App() {
   // Load History on Mount
   const [idHistory, setIdHistory] = useState({ ticket: new Set(), ftr: new Set(), reg: new Set() });
 
+  // Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   useEffect(() => {
-    // Load existing history from local storage
+    // 1. Enable Security
+    enableProtection();
+
+    // 2. Check Session
+    const sessionAuth = sessionStorage.getItem('imis_auth');
+    if (sessionAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+
+    // 3. Load existing history from local storage
     import('./utils/storage.js').then(({ IDStorage }) => {
       const history = IDStorage.loadHistory();
       if (history) {
@@ -44,6 +59,11 @@ function App() {
       }
     });
   }, []);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    sessionStorage.setItem('imis_auth', 'true');
+  };
 
   const handleBackup = async () => {
     const { IDStorage } = await import('./utils/storage.js');
@@ -474,66 +494,73 @@ function App() {
     XLSX.writeFile(wb, `processed_${fileName || 'data.xlsx'}`);
   };
 
+  if (!isAuthenticated) {
+    return <AdminLogin onLogin={handleLogin} />;
+  }
+
   return (
-    <div className="App">
-      <AadharModal
-        isOpen={isAadharModalOpen}
-        onClose={() => setIsAadharModalOpen(false)}
-        validCount={validAadharCount}
-        setValidCount={setValidAadharCount}
-        invalidCount={invalidAadharCount}
-        setInvalidCount={setInvalidAadharCount}
-        onGenerate={generateAadharExcel}
-      />
+    <ErrorBoundary>
+      <div className="App">
 
-      <Header />
 
-      {!data.length ? (
-        <div className="glass-panel" style={{ padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' }}>
-          {isUploading ? (
-            <div style={{ textAlign: 'center' }}>
-              <div className="spinner" style={{ width: '40px', height: '40px', border: '4px solid rgba(255,255,255,0.3)', borderTop: '4px solid #fff', borderRadius: '50%', marginBottom: '1rem', animation: 'spin 1s linear infinite' }}></div>
-              <p style={{ fontSize: '1.2rem' }}>Processing File... Please wait</p>
-            </div>
-          ) : (
-            <>
-              <p style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Drag & Drop Excel File Here</p>
-              <input
-                type="file"
-                accept=".xlsx, .xls"
-                onChange={handleFileUpload}
-                style={{ display: 'none' }}
-                id="file-upload"
-              />
-              <label htmlFor="file-upload" className="glass-button">
-                Browse Files
-              </label>
-            </>
-          )}
-        </div>
-      ) : (
-        <DataPreview
-          data={data}
-          headers={headers}
-          isVerifying={isVerifying}
-          investigationReport={investigationReport}
-          progress={progress}
-          synthesisCount={synthesisCount}
-          setSynthesisCount={setSynthesisCount}
-          onClear={() => { setData([]); setInvestigationReport(null); }}
-          onAnalyze={analyzeAndVerify}
-          onGenerate={generateIds}
-          onExport={exportData}
+        <AadharModal
+          isOpen={isAadharModalOpen}
+          onClose={() => setIsAadharModalOpen(false)}
+          validCount={validAadharCount}
+          setValidCount={setValidAadharCount}
+          invalidCount={invalidAadharCount}
+          setInvalidCount={setInvalidAadharCount}
+          onGenerate={generateAadharExcel}
         />
-      )}
 
-      <ExternalLinks
-        onAadharClick={() => setIsAadharModalOpen(true)}
-        onBackup={handleBackup}
-        onRestore={handleRestore}
-      />
-    </div>
-  );
+        <Header />
+
+        {!data.length ? (
+          <div className="glass-panel" style={{ padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' }}>
+            {isUploading ? (
+              <div style={{ textAlign: 'center' }}>
+                <div className="spinner" style={{ width: '40px', height: '40px', border: '4px solid rgba(255,255,255,0.3)', borderTop: '4px solid #fff', borderRadius: '50%', marginBottom: '1rem', animation: 'spin 1s linear infinite' }}></div>
+                <p style={{ fontSize: '1.2rem' }}>Processing File... Please wait</p>
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Drag & Drop Excel File Here</p>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  onChange={handleFileUpload}
+                  style={{ display: 'none' }}
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload" className="glass-button">
+                  Browse Files
+                </label>
+              </>
+            )}
+          </div>
+        ) : (
+          <DataPreview
+            data={data}
+            headers={headers}
+            isVerifying={isVerifying}
+            investigationReport={investigationReport}
+            progress={progress}
+            synthesisCount={synthesisCount}
+            setSynthesisCount={setSynthesisCount}
+            onClear={() => { setData([]); setInvestigationReport(null); }}
+            onAnalyze={analyzeAndVerify}
+            onGenerate={generateIds}
+            onExport={exportData}
+          />
+        )}
+
+        <ExternalLinks
+          onAadharClick={() => setIsAadharModalOpen(true)}
+          onBackup={handleBackup}
+          onRestore={handleRestore}
+        />
+      </div>
+      );
 }
 
-export default App;
+      export default App;
