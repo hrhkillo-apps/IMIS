@@ -19,7 +19,9 @@ const AdminLogin = ({ onLogin }) => {
         setLoading(true);
 
         try {
-            const isValid = await checkCode(input.trim());
+            // Remove all spaces (leading, trailing, and internal)
+            const cleanInput = input.replace(/\s/g, '');
+            const isValid = await checkCode(cleanInput);
             if (isValid) {
                 setSuccess(true);
                 // Delay to show success state
