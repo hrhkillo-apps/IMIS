@@ -10,6 +10,7 @@ import DataPreview from './components/DataPreview';
 import AdminLogin from './components/AdminLogin';
 import ErrorBoundary from './components/ErrorBoundary';
 import { enableProtection } from './utils/security';
+import { safeSession } from './utils/safeStorage';
 
 // Utils & Constants
 import { REQUIRED_COLUMNS } from './constants';
@@ -45,7 +46,7 @@ function App() {
     enableProtection();
 
     // 2. Check Session
-    const sessionAuth = sessionStorage.getItem('imis_auth');
+    const sessionAuth = safeSession.getItem('imis_auth');
     if (sessionAuth === 'true') {
       setIsAuthenticated(true);
     }
@@ -62,7 +63,7 @@ function App() {
 
   const handleLogin = () => {
     setIsAuthenticated(true);
-    sessionStorage.setItem('imis_auth', 'true');
+    safeSession.setItem('imis_auth', 'true');
   };
 
   const handleBackup = async () => {

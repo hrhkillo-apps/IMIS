@@ -3,6 +3,8 @@
  * Uses LocalStorage to persist sets of generated IDs to prevent reuse.
  */
 
+import { safeLocal } from './safeStorage';
+
 const STORAGE_KEYS = {
     TICKET: 'imis_history_ticket',
     FTR: 'imis_history_ftr',
@@ -18,9 +20,9 @@ export const IDStorage = {
     // Load all history into memory
     loadHistory: () => {
         try {
-            const ticketRaw = localStorage.getItem(STORAGE_KEYS.TICKET);
-            const ftrRaw = localStorage.getItem(STORAGE_KEYS.FTR);
-            const regRaw = localStorage.getItem(STORAGE_KEYS.REG);
+            const ticketRaw = safeLocal.getItem(STORAGE_KEYS.TICKET);
+            const ftrRaw = safeLocal.getItem(STORAGE_KEYS.FTR);
+            const regRaw = safeLocal.getItem(STORAGE_KEYS.REG);
 
             return {
                 ticket: ticketRaw ? arrToSet(JSON.parse(ticketRaw)) : new Set(),
@@ -38,29 +40,25 @@ export const IDStorage = {
     },
 
     // Save specific new IDs (Append to existing storage)
-    // Note: LocalStorage has a size limit (usually ~5MB). Storing millions of IDs might hit it.
-    // For larger sets, IndexedDB is better, but this is a quick valid start.
     saveBatch: (newIds) => {
         try {
             const current = IDStorage.loadHistory(); // Reload to be safe/atomic-ish
 
             if (newIds.ticket.size > 0) {
                 newIds.ticket.forEach(id => current.ticket.add(String(id)));
-                localStorage.setItem(STORAGE_KEYS.TICKET, JSON.stringify(setToArr(current.ticket)));
+                safeLocal.setItem(STORAGE_KEYS.TICKET, JSON.stringify(setToArr(current.ticket)));
             }
             if (newIds.ftr.size > 0) {
                 newIds.ftr.forEach(id => current.ftr.add(String(id)));
-                localStorage.setItem(STORAGE_KEYS.FTR, JSON.stringify(setToArr(current.ftr)));
+                safeLocal.setItem(STORAGE_KEYS.FTR, JSON.stringify(setToArr(current.ftr)));
             }
             if (newIds.reg.size > 0) {
                 newIds.reg.forEach(id => current.reg.add(String(id)));
-                localStorage.setItem(STORAGE_KEYS.REG, JSON.stringify(setToArr(current.reg)));
+                safeLocal.setItem(STORAGE_KEYS.REG, JSON.stringify(setToArr(current.reg)));
             }
         } catch (e) {
             console.error("Failed to save ID history:", e);
-            if (e.name === 'QuotaExceededError') {
-                alert("Warning: Browser storage is full. ID history may not be saved!");
-            }
+            // safeLocal should handle quota, but just in case
         }
     },
 
@@ -85,9 +83,9 @@ export const IDStorage = {
             const ftrSet = new Set(data.ftr);
             const regSet = new Set(data.reg);
 
-            localStorage.setItem(STORAGE_KEYS.TICKET, JSON.stringify([...ticketSet]));
-            localStorage.setItem(STORAGE_KEYS.FTR, JSON.stringify([...ftrSet]));
-            localStorage.setItem(STORAGE_KEYS.REG, JSON.stringify([...regSet]));
+            safeLocal.setItem(STORAGE_KEYS.TICKET, JSON.stringify([...ticketSet]));
+            safeLocal.setItem(STORAGE_KEYS.FTR, JSON.stringify([...ftrSet]));
+            safeLocal.setItem(STORAGE_KEYS.REG, JSON.stringify([...regSet]));
 
             return { success: true, count: ticketSet.size + ftrSet.size + regSet.size };
         } catch (e) {
@@ -96,8 +94,8 @@ export const IDStorage = {
     },
 
     clearHistory: () => {
-        localStorage.removeItem(STORAGE_KEYS.TICKET);
-        localStorage.removeItem(STORAGE_KEYS.FTR);
-        localStorage.removeItem(STORAGE_KEYS.REG);
+        safeLocal.removeItem(STORAGE_KEYS.TICKET);
+        safeLocal.removeItem(STORAGE_KEYS.FTR);
+        safeLocal.removeItem(STORAGE_KEYS.REG);
     }
 };
