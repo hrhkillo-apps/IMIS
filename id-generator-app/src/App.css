@@ -11,9 +11,11 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -22,6 +24,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -39,4 +42,138 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* --- Responsive Utilities --- */
+
+/* Stats Grid: 3 columns on desktop, 1 on mobile */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+/* Action Area: Row on desktop, Column on mobile */
+.action-area {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  /* Allow wrapping on medium screens */
+}
+
+/* Header with Clear button */
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Table Container */
+.table-container {
+  overflow-x: auto;
+  max-height: 500px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  /* Prevent wrapping inside cells for cleaner look, scrolling is better */
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px 15px;
+  text-align: left;
+}
+
+.data-table th {
+  background: rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+
+.data-table tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* --- Mobile Breakpoints --- */
+
+@media (max-width: 768px) {
+  #root {
+    padding: 1rem;
+    /* Reduce padding */
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    /* Stack stats */
+  }
+
+  .preview-header {
+    flex-direction: column;
+    align-items: stretch;
+    /* Full width buttons */
+    text-align: center;
+  }
+
+  .preview-header h2 {
+    margin-bottom: 0.5rem;
+  }
+
+  .glass-button {
+    width: 100%;
+    /* Full width buttons on mobile */
+    justify-content: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .glass-panel {
+    padding: 1.5rem;
+    /* Reduce panel padding */
+  }
+
+  /* Admin Login */
+  .login-container {
+    padding: 1.5rem !important;
+    max-width: 90% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    font-size: 14px;
+    /* Slightly smaller base font */
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
 }

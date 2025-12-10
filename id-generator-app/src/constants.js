@@ -16,3 +16,9 @@ export const PREDEFINED_LINKS = [
     { label: 'SBM IMIS', url: 'https://sbm.gov.in/SBMPhase2/Secure/Entry/UserMenu.aspx' },
     { label: 'SAC', url: 'https://sac.ap.gov.in/internal' }
 ];
+
+export const ID_RANGES = {
+    TICKET: { MIN: 2000000000, MAX: 2999999999 },
+    FTR: { MIN: 2000000000, MAX: 2999999999 }, // Currently same as Ticket
+    REG: { MIN: 1000000000, MAX: 1999999999 }
+};

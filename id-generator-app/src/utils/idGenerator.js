@@ -3,6 +3,8 @@
  * Implementation: Persistent Sequential Logic & Context-Aware Name Generation
  */
 
+import { ID_RANGES } from '../constants';
+
 // --- Name Generation ---
 export const generateName = (namePool) => {
   const { firstNames, surnames } = namePool;
@@ -44,21 +46,18 @@ const generateUniqueRandomId = (min, max, existingSet) => {
 };
 
 // Ticket: Random 10-digit starting with 2
-// Range: 2000000000 - 2999999999
 export const generateTicketNumber = (existingIds) => {
-  return generateUniqueRandomId(2000000000, 2999999999, existingIds);
+  return generateUniqueRandomId(ID_RANGES.TICKET.MIN, ID_RANGES.TICKET.MAX, existingIds);
 };
 
-// FTR: Random 10-digit starting with 2 (same pool logic as ticket usually, or separate?)
-// Keeping same range logic for now.
+// FTR: Random 10-digit starting with 2
 export const generateFTRNumber = (existingIds) => {
-  return generateUniqueRandomId(2000000000, 2999999999, existingIds);
+  return generateUniqueRandomId(ID_RANGES.FTR.MIN, ID_RANGES.FTR.MAX, existingIds);
 };
 
 // IMIS (Reg): Random 10-digit starting with 1
-// Range: 1000000000 - 1999999999
 export const generateBeneficiaryRegId = (existingIds) => {
-  return generateUniqueRandomId(1000000000, 1999999999, existingIds);
+  return generateUniqueRandomId(ID_RANGES.REG.MIN, ID_RANGES.REG.MAX, existingIds);
 };
 
 export const validateRow = (row) => {

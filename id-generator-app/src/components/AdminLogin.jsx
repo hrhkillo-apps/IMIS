@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { checkCode } from '../utils/auth';
+import { authService } from '../services/AuthService';
 
 const AdminLogin = ({ onLogin }) => {
     const [input, setInput] = useState('');
@@ -19,12 +19,12 @@ const AdminLogin = ({ onLogin }) => {
         setLoading(true);
 
         try {
-            // Remove all spaces (leading, trailing, and internal)
+            // Remove all spaces
             const cleanInput = input.replace(/\s/g, '');
-            const isValid = await checkCode(cleanInput);
+            const isValid = await authService.verifyCode(cleanInput);
+
             if (isValid) {
                 setSuccess(true);
-                // Delay to show success state
                 setTimeout(() => {
                     onLogin();
                 }, 800);
@@ -34,13 +34,13 @@ const AdminLogin = ({ onLogin }) => {
             }
         } catch (err) {
             console.error(err);
-            setError(err.message || 'Verification Error');
+            setError('Verification Error');
             setLoading(false);
         }
     };
 
     return (
-        <div style={{
+        <div className="login-overlay" style={{
             position: 'fixed',
             top: 0,
             left: 0,
@@ -53,7 +53,7 @@ const AdminLogin = ({ onLogin }) => {
             zIndex: 9999,
             backdropFilter: 'blur(10px)'
         }}>
-            <div className="glass-panel" style={{ padding: '3rem', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+            <div className="glass-panel login-container" style={{ padding: '3rem', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
                 <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>
                     {success ? '✅ Access Granted' : 'Restricted Access'}
                 </h2>
@@ -68,19 +68,12 @@ const AdminLogin = ({ onLogin }) => {
                                 value={input}
                                 onChange={(e) => { setInput(e.target.value); setError(false); }}
                                 placeholder="ACCESS CODE"
-                                className={error ? 'shake-animation' : ''}
+                                className={`glass-input ${error ? 'shake-animation' : ''}`}
                                 style={{
                                     width: '100%',
-                                    padding: '1rem',
                                     marginBottom: '1rem',
-                                    background: 'rgba(0,0,0,0.3)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: '8px',
-                                    color: 'white',
                                     fontSize: '1.2rem',
-                                    textAlign: 'center',
-                                    outline: 'none',
-                                    transition: 'all 0.2s'
+                                    textAlign: 'center'
                                 }}
                                 autoFocus
                             />

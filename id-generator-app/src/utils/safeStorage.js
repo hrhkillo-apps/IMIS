@@ -35,7 +35,7 @@ const createSafeStorage = (type) => {
             storage.setItem(x, x);
             storage.removeItem(x);
             return true;
-        } catch (e) {
+        } catch {
             return false;
         }
     };
@@ -47,7 +47,7 @@ const createSafeStorage = (type) => {
             if (supported) {
                 try {
                     return window[type].getItem(key);
-                } catch (e) {
+                } catch {
                     // Fallback if sudden persistence failure
                     return memStorage.getItem(key);
                 }
@@ -58,7 +58,7 @@ const createSafeStorage = (type) => {
             if (supported) {
                 try {
                     window[type].setItem(key, value);
-                } catch (e) {
+                } catch {
                     memStorage.setItem(key, value);
                 }
             } else {
@@ -69,7 +69,7 @@ const createSafeStorage = (type) => {
             if (supported) {
                 try {
                     window[type].removeItem(key);
-                } catch (e) {
+                } catch {
                     memStorage.removeItem(key);
                 }
             } else {
@@ -80,7 +80,7 @@ const createSafeStorage = (type) => {
             if (supported) {
                 try {
                     window[type].clear();
-                } catch (e) {
+                } catch {
                     memStorage.clear();
                 }
             } else {

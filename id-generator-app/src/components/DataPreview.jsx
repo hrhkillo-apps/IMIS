@@ -15,7 +15,7 @@ const DataPreview = ({
 }) => {
   return (
     <div className="glass-panel">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div className="preview-header">
         <h2>Preview: {data.length} Rows</h2>
         <div style={{ gap: '1rem', display: 'flex' }}>
           <button className="glass-button" style={{ background: 'rgba(255,0,0,0.2)' }} onClick={onClear}>Clear</button>
@@ -23,7 +23,7 @@ const DataPreview = ({
       </div>
 
       {/* Action Area */}
-      <div style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', textAlign: 'center' }}>
+      <div className="action-area">
 
         {!investigationReport && !isVerifying && (
           <div>
@@ -46,7 +46,7 @@ const DataPreview = ({
         {investigationReport && (
           <div className="fade-in">
             <h3 style={{ color: '#4caf50', marginBottom: '1rem' }}>✅ Data Verified</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem', textAlign: 'left' }}>
+            <div className="stats-grid">
               <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px' }}>
                 <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Valid Rows</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{investigationReport.validCount}</div>
@@ -65,7 +65,7 @@ const DataPreview = ({
 
             <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(0,123,255,0.1)', borderRadius: '8px', border: '1px solid rgba(0,123,255,0.2)' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Generate New Records (Append to file)</label>
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
                 <input
                   type="number"
                   min="0"
@@ -86,7 +86,7 @@ const DataPreview = ({
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <div className="action-buttons">
               <button className="glass-button" onClick={onGenerate} style={{ background: '#28a745', fontSize: '1.1rem', padding: '12px 24px', border: 'none' }}>
                 ✨ Generate Smart IDs
               </button>
@@ -96,20 +96,20 @@ const DataPreview = ({
         )}
       </div>
 
-      <div style={{ overflowX: 'auto', maxHeight: '500px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+      <div className="table-container">
+        <table className="data-table">
           <thead>
             <tr>
               {headers.map((h, i) => (
-                <th key={i} style={{ padding: '10px', textAlign: 'left', background: 'rgba(255,255,255,0.1)' }}>{h}</th>
+                <th key={i}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {data.map((row, rI) => (
-              <tr key={rI} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <tr key={rI}>
                 {headers.map((h, cI) => (
-                  <td key={cI} style={{ padding: '8px' }}>{row[cI] || ''}</td>
+                  <td key={cI}>{row[cI] || ''}</td>
                 ))}
               </tr>
             ))}
