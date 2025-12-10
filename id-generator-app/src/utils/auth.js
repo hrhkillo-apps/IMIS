@@ -4,6 +4,7 @@
  */
 
 // Salt for extra security
+// Salt for extra security
 // DO NOT MODIFY
 const S_L = "IMIS_SECURE_LAYER_V1";
 
@@ -19,6 +20,8 @@ export const checkCode = async (inputCode) => {
     // Salt the input
     const saltedInput = inputCode + S_L;
 
+    console.log("Input:", inputCode); // Debuging
+
     // Convert string to buffer
     const encoder = new TextEncoder();
     const data = encoder.encode(saltedInput);
@@ -29,6 +32,9 @@ export const checkCode = async (inputCode) => {
     // Convert hash buffer to hex string
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // Debug Log (To be removed after verify)
+    // console.log("Gen:", hashHex); 
 
     return hashHex === S_H;
 };
