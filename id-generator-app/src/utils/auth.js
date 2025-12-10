@@ -4,11 +4,9 @@
  */
 
 // Salt for extra security
-// Salt for extra security
 // DO NOT MODIFY
 const S_L = "IMIS_SECURE_LAYER_V1";
 
-// Obfuscated Hash Storage
 // Obfuscated Hash Storage
 const S_H = "e978ad50fe4a49ba104ecd5bae8130a3921c56ceb615e4b270118ffd2f2675508";
 
@@ -27,7 +25,6 @@ export const checkCode = async (inputCode) => {
     // Hash using Web Crypto API
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 
-    // Convert hash buffer to hex string
     // Convert hash buffer to hex string
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');

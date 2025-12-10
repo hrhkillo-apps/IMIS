@@ -58,6 +58,8 @@ function App() {
         setIdHistory(history);
         console.log(`Loaded History: ${history.ticket.size} Tickets, ${history.ftr.size} FTRs, ${history.reg.size} Regs`);
       }
+    }).catch(err => {
+      console.warn("Failed to load history storage:", err);
     });
   }, []);
 
