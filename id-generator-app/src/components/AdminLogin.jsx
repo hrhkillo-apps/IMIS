@@ -19,7 +19,7 @@ const AdminLogin = ({ onLogin }) => {
         setLoading(true);
 
         try {
-            const isValid = await checkCode(input);
+            const isValid = await checkCode(input.trim());
             if (isValid) {
                 setSuccess(true);
                 // Delay to show success state
