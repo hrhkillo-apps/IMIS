@@ -34,7 +34,7 @@ const AdminLogin = ({ onLogin }) => {
             }
         } catch (err) {
             console.error(err);
-            setError(true);
+            setError(err.message || 'Verification Error');
             setLoading(false);
         }
     };
@@ -84,7 +84,7 @@ const AdminLogin = ({ onLogin }) => {
                                 }}
                                 autoFocus
                             />
-                            {error && <p style={{ color: '#ff4444', marginBottom: '1rem', fontSize: '0.9rem' }}>Invalid Access Code</p>}
+                            {error && <p style={{ color: '#ff4444', marginBottom: '1rem', fontSize: '0.9rem' }}>{typeof error === 'string' ? error : 'Invalid Access Code'}</p>}
 
                             <button
                                 type="submit"
