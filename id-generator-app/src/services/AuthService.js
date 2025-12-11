@@ -5,7 +5,7 @@
 
 // Production Hash (SHA-256 of the access code 112730)
 // In a real server-backed app, this would be validated on the server.
-const AUTH_HASH = "5fc0361093121ef377c8e54366fe6f40393081ce13d7890f5761e38319e34e5a";
+const AUTH_HASH = "e978ad50fe4a49ba104ecd5bae8130a3921c56ceb615e4b27018ffd2f2675508";
 const SALT = "IMIS_SECURE_LAYER_V1";
 const SESSION_KEY = "imis_auth";
 
