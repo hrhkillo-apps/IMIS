@@ -90,5 +90,6 @@ export const generateDifferenceExcel = (headers, rows) => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "NewEntries");
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    XLSX.writeFile(wb, `tally_differences_${timestamp}.xlsx`);
+    // Force .xlsx extension and type
+    XLSX.writeFile(wb, `tally_differences_${timestamp}.xlsx`, { bookType: 'xlsx', type: 'array' });
 };
