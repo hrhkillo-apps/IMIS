@@ -1,8 +1,10 @@
 
 import React, { useState } from 'react';
 import { compareExcelFiles, generateDifferenceExcel } from '../utils/tallyProcessor';
+import { useToast } from '../context/ToastContext';
 
 const TallyModal = ({ isOpen, onClose }) => {
+    const toast = useToast();
     const [oldFile, setOldFile] = useState(null);
     const [newFile, setNewFile] = useState(null);
     const [processing, setProcessing] = useState(false);
@@ -12,7 +14,7 @@ const TallyModal = ({ isOpen, onClose }) => {
 
     const handleCompare = async () => {
         if (!oldFile || !newFile) {
-            alert("Please upload both files.");
+            toast.error("Please upload both files.");
             return;
         }
 

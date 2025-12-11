@@ -28,8 +28,7 @@ const readExcelFile = (file) => {
 
 /**
  * Compares two arrays of data (rows) and returns rows present in newFile but not in oldFile.
- * Assumes first row is header.
- * Uses strict row content comparison (all columns must match).
+ * Identification is based STRICTLY on the 'Ticket Number' column.
  * @param {File} oldFile 
  * @param {File} newFile 
  * @returns {Promise<Object>} { newRows: Array, error: String }
@@ -44,26 +43,33 @@ export const compareExcelFiles = async (oldFile, newFile) => {
         if (!oldData || oldData.length === 0) throw new Error("Old file is empty");
         if (!newData || newData.length === 0) throw new Error("New file is empty");
 
-        // Headers should match roughly, but we process based on row content equality
-        // We'll treat the first row of newFile as the header for the output
         const headers = newData[0];
 
-        // Create a Set of stringified rows from oldData for O(1) lookup
-        // robust stringify: join columns with a separator that is unlikely to be in data, or JSON.stringify
-        const oldSet = new Set();
+        // Find "Ticket Number" index
+        const ticketIndex = headers.findIndex(h => h && h.toString().trim() === 'Ticket Number');
 
-        // Skip header (index 0) for value comparison
+        if (ticketIndex === -1) {
+            throw new Error("Column 'Ticket Number' not found in the latest file. Please ensure both files have this column.");
+        }
+
+        // Create a Set of Ticket Numbers from oldData
+        const oldTicketSet = new Set();
+
+        // Skip header (index 0)
         oldData.slice(1).forEach(row => {
-            // Normalize row: trim strings, handle data types if needed. 
-            // For now, JSON.stringify is a good enough signature for exact row match.
-            oldSet.add(JSON.stringify(row));
+            const ticket = row[ticketIndex];
+            if (ticket) {
+                oldTicketSet.add(String(ticket).trim());
+            }
         });
 
         const newRows = [];
 
         // Check new data
         newData.slice(1).forEach(row => {
-            if (!oldSet.has(JSON.stringify(row))) {
+            const ticket = row[ticketIndex];
+            // If ticket is present and NOT in old set, it's a new row
+            if (ticket && !oldTicketSet.has(String(ticket).trim())) {
                 newRows.push(row);
             }
         });

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './index.css';
 import * as XLSX from 'xlsx';
+import { useToast } from './context/ToastContext';
 
 // Components
 import Header from './components/Header';
@@ -21,6 +22,8 @@ import { REQUIRED_COLUMNS } from './constants';
 // though for this size, static imports are fine. Sticking to dynamic for now as per original pattern.
 
 function App() {
+  const toast = useToast();
+
   // Hooks
   const {
     data, setData, headers, isUploading, error: uploadError,
@@ -96,15 +99,15 @@ function App() {
           const { IDStorage } = await import('./utils/storage.js');
           const result = IDStorage.importHistoryData(evt.target.result);
           if (result.success) {
-            alert(`History Restored Successfully! (Items: ${result.count})`);
+            toast.success(`History Restored Successfully! (Items: ${result.count})`);
             const history = IDStorage.loadHistory();
             setIdHistory(history);
           } else {
-            alert("Restore Failed: " + result.error);
+            toast.error("Restore Failed: " + result.error);
           }
         } catch (err) {
           console.error(err);
-          alert("Invalid Backup File");
+          toast.error("Invalid Backup File");
         }
       };
       reader.readAsText(file);
@@ -123,9 +126,9 @@ function App() {
   const handleAnalyze = async () => {
     const result = await analyzeAndVerify(data, headers);
     if (!result.success && result.error.includes("CRITICAL")) {
-      alert(result.error);
+      toast.error(result.error);
     } else if (!result.success) {
-      alert("Analysis failed. Please check file.");
+      toast.error("Analysis failed. Please check file.");
     }
   };
 
@@ -134,16 +137,16 @@ function App() {
     if (result.success) {
       setData(result.finalData);
       setIdHistory(result.newHistory);
-      alert(result.message);
+      toast.success(result.message);
     } else {
-      alert("Generation failed: " + result.error);
+      toast.error("Generation failed: " + result.error);
     }
   };
 
   const generateAadharExcel = async (type) => {
     const count = type === 'valid' ? Number(validAadharCount) : Number(invalidAadharCount);
     if (!count || count <= 0) {
-      alert("Please enter a valid quantity.");
+      toast.error("Please enter a valid quantity.");
       return;
     }
 
@@ -161,9 +164,11 @@ function App() {
       const filename = `${type}_aadhar_${timestamp}.xlsx`;
       XLSX.writeFile(wb, filename);
 
-      alert(`Generated ${count} ${type} Aadhar numbers!\nSaved as ${filename}`);
+      XLSX.writeFile(wb, filename);
+
+      toast.success(`Generated ${count} ${type} Aadhar numbers!`);
     } catch (err) {
-      alert('Error: ' + err.message);
+      toast.error('Error: ' + err.message);
     }
   };
 
