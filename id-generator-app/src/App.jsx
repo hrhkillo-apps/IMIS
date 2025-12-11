@@ -8,6 +8,7 @@ import ExternalLinks from './components/ExternalLinks';
 import AadharModal from './components/AadharModal';
 import DataPreview from './components/DataPreview';
 import AdminLogin from './components/AdminLogin';
+import TallyModal from './components/TallyModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useFileProcessor } from './hooks/useFileProcessor';
 import { useIdGenerator } from './hooks/useIdGenerator';
@@ -35,6 +36,9 @@ function App() {
   const [isAadharModalOpen, setIsAadharModalOpen] = useState(false);
   const [validAadharCount, setValidAadharCount] = useState('');
   const [invalidAadharCount, setInvalidAadharCount] = useState('');
+
+  // Tally Modal State
+  const [isTallyModalOpen, setIsTallyModalOpen] = useState(false);
 
   // Load History on Mount
   const [idHistory, setIdHistory] = useState({ ticket: new Set(), ftr: new Set(), reg: new Set() });
@@ -195,6 +199,11 @@ function App() {
           onGenerate={generateAadharExcel}
         />
 
+        <TallyModal
+          isOpen={isTallyModalOpen}
+          onClose={() => setIsTallyModalOpen(false)}
+        />
+
         <Header />
 
         {!data.length ? (
@@ -241,6 +250,7 @@ function App() {
           onAadharClick={() => setIsAadharModalOpen(true)}
           onBackup={handleBackup}
           onRestore={handleRestore}
+          onTallyClick={() => setIsTallyModalOpen(true)}
         />
       </div>
     </ErrorBoundary>

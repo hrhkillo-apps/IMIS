@@ -1,22 +1,36 @@
 import React from 'react';
 import { PREDEFINED_LINKS } from '../constants';
 
-const ExternalLinks = ({ onAadharClick, onBackup, onRestore }) => (
+const ExternalLinks = ({ onAadharClick, onBackup, onRestore, onTallyClick }) => (
     <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
         <h3 style={{ marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>Quick Links</h3>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {PREDEFINED_LINKS.map((link, index) => (
-                <a
-                    key={index}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="glass-button"
-                    style={{ textDecoration: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
-                >
-                    🔗 {link.label}
-                </a>
-            ))}
+            {PREDEFINED_LINKS.map((link, index) => {
+                if (link.label === 'Tally xlsx to xlsx') {
+                    return (
+                        <button
+                            key={index}
+                            onClick={onTallyClick}
+                            className="glass-button"
+                            style={{ textDecoration: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
+                        >
+                            🔗 {link.label}
+                        </button>
+                    );
+                }
+                return (
+                    <a
+                        key={index}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="glass-button"
+                        style={{ textDecoration: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
+                    >
+                        🔗 {link.label}
+                    </a>
+                );
+            })}
             <button
                 onClick={onAadharClick}
                 className="glass-button"
