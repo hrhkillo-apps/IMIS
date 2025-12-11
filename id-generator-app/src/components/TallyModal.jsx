@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { compareExcelFiles, generateDifferenceExcel } from '../utils/tallyProcessor';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 
 const TallyModal = ({ isOpen, onClose }) => {
     const toast = useToast();

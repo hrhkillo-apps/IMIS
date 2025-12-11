@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './index.css';
 import * as XLSX from 'xlsx';
-import { useToast } from './context/ToastContext';
+import { useToast } from './hooks/useToast';
 
 // Components
 import Header from './components/Header';
@@ -63,10 +63,7 @@ function App() {
       const history = IDStorage.loadHistory();
       if (history) {
         setIdHistory(history);
-        console.log(`Loaded History: ${history.ticket.size} Tickets, ${history.ftr.size} FTRs, ${history.reg.size} Regs`);
       }
-    }).catch(err => {
-      console.warn("Failed to load history storage:", err);
     });
   }, []);
 
