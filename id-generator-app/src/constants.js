@@ -15,8 +15,9 @@ export const PREDEFINED_LINKS = [
     { label: 'Create Multiple Beneficiary Requests', url: 'https://prdcfms.apcfss.in:44300/sap/bc/ui5_ui5/sap/zexp_bf_mul_req/index.html' },
     { label: 'SBM IMIS', url: 'https://sbm.gov.in/SBMPhase2/Secure/Entry/UserMenu.aspx' },
     { label: 'SAC', url: 'https://sac.ap.gov.in/internal' },
-    { label: 'Tally xlsx to xlsx', url: '#' },
-    { label: 'Tally cfms xlsx to local xlsx', url: '#' }
+    { label: 'New Added Data Finder', url: '#' },
+    { label: 'Match CFMS with SAC', url: '#' },
+    { label: 'IMIS id Generator', url: '#' }
 ];
 
 export const ID_RANGES = {

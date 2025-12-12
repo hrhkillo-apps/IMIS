@@ -10,6 +10,8 @@ import AadharModal from './components/AadharModal';
 import DataPreview from './components/DataPreview';
 import AdminLogin from './components/AdminLogin';
 import TallyModal from './components/TallyModal';
+import ImisIdModal from './components/ImisIdModal';
+import MatchModal from './components/MatchModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useFileProcessor } from './hooks/useFileProcessor';
 import { useIdGenerator } from './hooks/useIdGenerator';
@@ -42,6 +44,13 @@ function App() {
 
   // Tally Modal State
   const [isTallyModalOpen, setIsTallyModalOpen] = useState(false);
+
+  // IMIS ID Generator Modal State
+  const [isImisModalOpen, setIsImisModalOpen] = useState(false);
+  const [imisIdCount, setImisIdCount] = useState('');
+
+  // Match CFMS Modal State
+  const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
 
   // Load History on Mount
   const [idHistory, setIdHistory] = useState({ ticket: new Set(), ftr: new Set(), reg: new Set() });
@@ -169,6 +178,71 @@ function App() {
     }
   };
 
+
+  const handleGenerateImis = async () => {
+    const count = Number(imisIdCount);
+    if (!count || count <= 0) {
+      toast.error("Please enter a valid quantity.");
+      return;
+    }
+
+    try {
+      const { generateBeneficiaryRegId } = await import('./utils/idGenerator.js');
+      const { IDStorage } = await import('./utils/storage.js');
+
+      // 1. Load full history to ensure global uniqueness
+      const currentHistory = IDStorage.loadHistory();
+
+      // 2. Create a working set initialized with existing REG IDs
+      // We clone it to avoid mutating the original state immediately, 
+      // though Set mutation is fine here as we'll save explicitly.
+      const workingRegSet = new Set(currentHistory.reg);
+      const newBatchIds = new Set();
+      const generatedList = [];
+
+      for (let i = 0; i < count; i++) {
+        // generateBeneficiaryRegId checks against the set passed to it
+        const newId = generateBeneficiaryRegId(workingRegSet);
+
+        // Add to both sets
+        workingRegSet.add(String(newId));
+        newBatchIds.add(String(newId));
+        generatedList.push(newId);
+      }
+
+      // 3. Save the new batch to persistent storage
+      IDStorage.saveBatch({
+        ticket: new Set(),
+        ftr: new Set(),
+        reg: newBatchIds
+      });
+
+      // 4. Update local state history so the main app knows about these new IDs too
+      const updatedHistory = IDStorage.loadHistory();
+      setIdHistory(updatedHistory);
+
+      // 5. Export to Excel
+      const wsData = [["IMIS Id"], ...generatedList.map(id => [id])];
+      const now = new Date();
+      const timestamp = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "IMIS IDs");
+
+      // Use simple filename to test
+      const filename = `imis_ids_generated.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+      toast.success(`Generated ${count} unique IMIS IDs and saved to history!`);
+      setImisIdCount('');
+      setIsImisModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error('Error: ' + err.message);
+    }
+  };
+
   const exportData = () => {
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
     const wb = XLSX.utils.book_new();
@@ -204,6 +278,19 @@ function App() {
         <TallyModal
           isOpen={isTallyModalOpen}
           onClose={() => setIsTallyModalOpen(false)}
+        />
+
+        <ImisIdModal
+          isOpen={isImisModalOpen}
+          onClose={() => setIsImisModalOpen(false)}
+          count={imisIdCount}
+          setCount={setImisIdCount}
+          onGenerate={handleGenerateImis}
+        />
+
+        <MatchModal
+          isOpen={isMatchModalOpen}
+          onClose={() => setIsMatchModalOpen(false)}
         />
 
         <Header />
@@ -253,6 +340,8 @@ function App() {
           onBackup={handleBackup}
           onRestore={handleRestore}
           onTallyClick={() => setIsTallyModalOpen(true)}
+          onImisClick={() => setIsImisModalOpen(true)}
+          onMatchClick={() => setIsMatchModalOpen(true)}
         />
       </div>
     </ErrorBoundary>
