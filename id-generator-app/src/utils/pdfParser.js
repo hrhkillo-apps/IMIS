@@ -15,11 +15,11 @@ export const parseCfmsPdf = async (file) => {
 
         let extractedData = [];
 
-        // Loop through all pages
-        for (let i = 1; i <= pdf.numPages; i++) {
+        // Loop through all pages - STARTING FROM PAGE 2 as per user request
+        for (let i = 2; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
-            const textItems = textContent.items.map(item => item.str).join(' '); // Simple join for regex search
+            // const textItems = textContent.items.map(item => item.str).join(' '); // Simple join for regex search
 
             // Regex patterns based on typical CFMS formats (Generalized for now)
             // Assumed format: Account Number: XXXXX, Code: XXX, etc. from unstructured text
@@ -107,40 +107,109 @@ export const parseCfmsPdf = async (file) => {
             }
             // ---------------------------------------------------------
 
-            // Now Iterate lines to find records.
-            // Assumption: A record might span one or multiple lines, but crucial info is presumably in a row.
+            // LOGIC CHANGE: Identify "Record Blocks"
+            // A record starts with a line containing an Account Number.
+            // It continues until the start of the next Account Number line.
 
-            lines.forEach(line => {
-                // We attempt to extract fields from each line if it looks like a data row.
-                // Regex for Account Number (9-18 digits typically)
+            let i_line = 0;
+            while (i_line < lines.length) {
+                const line = lines[i_line];
                 const accountMatch = line.match(/\b\d{9,18}\b/);
-                // Regex for Aadhar (12 digits, often Verhoeff/UIDAI)
-                const aadharMatch = line.match(/\b\d{12}\b/);
-                // Regex for IFSC (4 chars + 0 + 6 chars)
-                const ifscMatch = line.match(/[A-Z]{4}0[A-Z0-9]{6}/);
-                // Regex for Amount (Numbers with commas/decimals)
-                const amountMatch = line.match(/\b\d{1,3}(,\d{3})*(\.\d{2})?\b/);
-
-                // "Code" is ambiguous. Looking for generic short number? 
-                // Let's assume it's near the start or specifically labelled?
-                // Using a fallback "first number that isn't the others" or simply skipping if undefined for now.
 
                 if (accountMatch) {
-                    // Start a record
-                    let record = {
-                        accountNumber: accountMatch[0],
-                        aadhar: aadharMatch ? aadharMatch[0] : null,
-                        ifsc: ifscMatch ? ifscMatch[0] : null,
-                        amount: amountMatch ? amountMatch[0] : null,
-                        code: null // flexible
+                    // Found a record start
+                    let recordText = line;
+                    let j = i_line + 1;
+
+                    // Look ahead for wrapped lines
+                    while (j < lines.length) {
+                        const nextLine = lines[j];
+                        const nextAccountMatch = nextLine.match(/\b\d{9,18}\b/);
+                        if (nextAccountMatch) {
+                            // Stop, this is a new record
+                            break;
+                        } else {
+                            // This is likely wrapped text for current record
+                            recordText += " " + nextLine;
+                            j++;
+                        }
+                    }
+
+                    // Advance main loop index
+                    i_line = j;
+
+                    // Process the FULL extracted record text
+                    const accountNumber = accountMatch[0];
+                    let remainingText = recordText;
+
+                    const extract = (regex) => {
+                        const match = remainingText.match(regex);
+                        if (match) {
+                            remainingText = remainingText.replace(match[0], '').trim();
+                            return match[0];
+                        }
+                        return null;
                     };
 
-                    // Simple heuristic to differentiate numbers if multiples exist
-                    // This is rough without the specific PDF layout.
+                    const aadhar = extract(/\b\d{12}\b/);
+                    const ifsc = extract(/[A-Z]{4}0[A-Z0-9]{6}/);
+                    const pan = extract(/[A-Z]{5}[0-9]{4}[A-Z]{1}/);
+                    // Amount: careful not to match partial numbers too aggressively if they look like ref nos
+                    // Usually amount has commas or dot: 1,234.00 or 500.00
+                    const amount = extract(/\b\d{1,3}(,\d{3})*(\.\d{2})?\b/);
 
-                    extractedData.push(record);
+                    // Remove Account Number
+                    remainingText = remainingText.replace(accountNumber, '').trim();
+
+                    // Bene Code: Short digits (3-9 typically) at start
+                    // But wait, Ref No might be long digits?
+                    // Let's assume Bene Code is distinct if it's small.
+                    // If we have "12345678" it could be ref no or bene code?
+                    // User list: Bene Code ... Reference No.
+
+                    let beneCode = null;
+                    const beneCodeMatch = remainingText.match(/^\b\d{3,9}\b/);
+                    if (beneCodeMatch) {
+                        beneCode = beneCodeMatch[0];
+                        remainingText = remainingText.replace(beneCode, '').trim();
+                    }
+
+                    // Reference No: Often longer digits remaining?
+                    let refNo = null;
+                    // Look for any remaining long number sequence
+                    const refMatch = remainingText.match(/\b\d{6,}\b/);
+                    if (refMatch) {
+                        refNo = refMatch[0];
+                        remainingText = remainingText.replace(refNo, '').trim();
+                    }
+
+                    // Remaining text is Name + Bank
+                    // Clean up extra spaces
+                    let nameAndBank = remainingText.replace(/\s+/g, ' ').trim();
+
+                    // Try to split Name / Bank? Hard without delimiters.
+                    // Returning combined for now as requested "Name/Bank" in previous step,
+                    // but user asked for "Name, Bank" columns.
+                    // We'll put the full string in 'Name' and leave 'Bank' empty or duplicate?
+                    // Better: 'Name & Bank' column or just 'Name' column with all text.
+                    // Let's fill 'Name' with the text. 
+
+                    extractedData.push({
+                        'Bene Code': beneCode || '',
+                        'Account No': accountNumber,
+                        'Name': nameAndBank || '',
+                        'Bank': '', // Cannot reliably separate from Name without specific separators
+                        'Pan No': pan || '',
+                        'Amount': amount || '',
+                        'Aadhar No': aadhar || '',
+                        'Reference No': refNo || ''
+                    });
+                } else {
+                    // Line without account number and not consumed by previous record loop
+                    // Just skip or log?
+                    i_line++;
                 }
-            });
+            }
         }
 
         return extractedData;
