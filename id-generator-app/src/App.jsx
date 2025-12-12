@@ -12,6 +12,7 @@ import AdminLogin from './components/AdminLogin';
 import TallyModal from './components/TallyModal';
 import ImisIdModal from './components/ImisIdModal';
 import MatchModal from './components/MatchModal';
+import PdfToExcelModal from './components/PdfToExcelModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useFileProcessor } from './hooks/useFileProcessor';
 import { useIdGenerator } from './hooks/useIdGenerator';
@@ -51,6 +52,9 @@ function App() {
 
   // Match CFMS Modal State
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
+
+  // PDF to Excel Modal State
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   // Load History on Mount
   const [idHistory, setIdHistory] = useState({ ticket: new Set(), ftr: new Set(), reg: new Set() });
@@ -293,6 +297,11 @@ function App() {
           onClose={() => setIsMatchModalOpen(false)}
         />
 
+        <PdfToExcelModal
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+        />
+
         <Header />
 
         {!data.length ? (
@@ -342,6 +351,7 @@ function App() {
           onTallyClick={() => setIsTallyModalOpen(true)}
           onImisClick={() => setIsImisModalOpen(true)}
           onMatchClick={() => setIsMatchModalOpen(true)}
+          onPdfConvertClick={() => setIsPdfModalOpen(true)}
         />
       </div>
     </ErrorBoundary>

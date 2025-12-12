@@ -65,6 +65,48 @@ export const parseCfmsPdf = async (file) => {
             });
             if (currentLineText.length > 0) lines.push(currentLineText.join(' '));
 
+            // --- FIX: Logic to merge split numbers (Text Wrapping) ---
+            // Issue: Numbers like 1000029540 might be split as "100002" on one line and "9540" on next.
+            // Heuristic: If a line ends with digits and the next line starts with digits, and they form a likely Account No, merge them.
+
+            for (let j = 0; j < lines.length - 1; j++) {
+                const currentLine = lines[j];
+                const nextLine = lines[j + 1];
+
+                // Check if current line ends with a number part (e.g. 5+ digits to be safe, or just any digits?)
+                // User example: 100002 (6 digits) + 9540 (4 digits).
+                // Let's look for: ... <digits> $
+                const endDigitsMatch = currentLine.match(/(\d{4,})$/); // matches last 4+ digits
+                // Check if next line starts with digits
+                const startDigitsMatch = nextLine.match(/^(\d{4,})/); // matches first 4+ digits of next line
+
+                if (endDigitsMatch && startDigitsMatch) {
+                    const part1 = endDigitsMatch[1];
+                    const part2 = startDigitsMatch[1];
+                    const merged = part1 + part2;
+
+                    // If merged looks like a valid Account Number (9-18 digits)
+                    if (merged.length >= 9 && merged.length <= 18) {
+                        // MERGE: Remove the wrapped part from next line and append to current
+                        // Strategy: Modify lines[j] to include the merged part, and remove it from lines[j+1]
+
+                        // We simply join the lines with NO space in between the split point, 
+                        // but we need to be careful not to merge other text if it's a table row.
+                        // Ideally, we just "heal" the number.
+
+                        // Heuristic: Append the start digits of next line to current line
+                        lines[j] = currentLine + part2;
+
+                        // Remove the start digits from next line
+                        lines[j + 1] = nextLine.substring(part2.length).trim();
+
+                        // If next line becomes empty, we might ignore it later, but our main loop handles regex matching per line.
+                        // Note: This modifies 'lines' in place, so the next iteration (j+1) will see the chopped line.
+                    }
+                }
+            }
+            // ---------------------------------------------------------
+
             // Now Iterate lines to find records.
             // Assumption: A record might span one or multiple lines, but crucial info is presumably in a row.
 
