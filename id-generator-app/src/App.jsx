@@ -13,11 +13,15 @@ import TallyModal from './components/TallyModal';
 import ImisIdModal from './components/ImisIdModal';
 import MatchModal from './components/MatchModal';
 import CommitmentsModal from './components/CommitmentsModal';
+import DataEntryModal from './components/DataEntryModal';
+import BulkDataEntryModal from './components/BulkDataEntryModal';
+import ViewDataEntryModal from './components/ViewDataEntryModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useFileProcessor } from './hooks/useFileProcessor';
 import { useIdGenerator } from './hooks/useIdGenerator';
 import { enableProtection } from './utils/security';
 import { authService } from './services/AuthService';
+import { useDataEntry } from './context/DataEntryContext';
 import Footer from './components/Footer';
 
 // Utils & Constants
@@ -62,6 +66,48 @@ function App() {
 
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Data Entry State
+  const { entries, addEntry, updateEntry, deleteEntry } = useDataEntry();
+  const [isDataEntryModalOpen, setIsDataEntryModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isViewDataModalOpen, setIsViewDataModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
+
+  const handleDataEntryClick = () => {
+    setEditingEntry(null);
+    setIsDataEntryModalOpen(true);
+  };
+
+  const handleBulkUploadClick = () => {
+    setIsBulkModalOpen(true);
+  };
+
+  const handleViewDataClick = () => {
+    setIsViewDataModalOpen(true);
+  };
+
+  const handleSaveEntry = async (data) => {
+    let success = false;
+    if (editingEntry) {
+      success = await updateEntry(editingEntry.id, data);
+      if (success) toast.success("Entry updated successfully!");
+    } else {
+      success = await addEntry(data);
+      if (success) toast.success("Entry added successfully!");
+    }
+    // We don't close the view modal if it's open, just the entry modal
+  };
+
+  const handleEditEntry = (entry) => {
+    setEditingEntry(entry);
+    setIsDataEntryModalOpen(true);
+  };
+
+  const handleDeleteEntry = (id) => {
+    deleteEntry(id);
+    toast.success("Entry deleted successfully!");
+  };
 
   useEffect(() => {
     // 1. Enable Security
@@ -303,7 +349,31 @@ function App() {
           onClose={() => setIsCommitmentsModalOpen(false)}
         />
 
-        <Header />
+        <DataEntryModal
+          isOpen={isDataEntryModalOpen}
+          onClose={() => setIsDataEntryModalOpen(false)}
+          initialData={editingEntry}
+          onSave={handleSaveEntry}
+        />
+
+        <BulkDataEntryModal
+          isOpen={isBulkModalOpen}
+          onClose={() => setIsBulkModalOpen(false)}
+        />
+
+        <ViewDataEntryModal
+          isOpen={isViewDataModalOpen}
+          onClose={() => setIsViewDataModalOpen(false)}
+          entries={entries}
+          onEdit={handleEditEntry}
+          onDelete={handleDeleteEntry}
+        />
+
+        <Header
+          onDataEntryClick={handleDataEntryClick}
+          onBulkUploadClick={handleBulkUploadClick}
+          onViewDataClick={handleViewDataClick}
+        />
 
         {!data.length ? (
           <div className="glass-panel" style={{ padding: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed' }}>

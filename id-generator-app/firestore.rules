@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Existing History Collections
+    // Used for ID Generation history
+    match /imis_history_ticket/{document=**} { allow read, write: if true; }
+    match /imis_history_ftr/{document=**} { allow read, write: if true; }
+    match /imis_history_reg/{document=**} { allow read, write: if true; }
+    match /imis_history_aadhar/{document=**} { allow read, write: if true; }
+    
+    // Data Entry Collection
+    // Covers all operations:
+    // - read: View/Get (View Data Entry)
+    // - write: Create (Add Entry), Update (Edit Entry), Delete (Delete Entry)
+    match /imis_data_entries/{document=**} {
+      allow read, write: if true;
+    }
+    
+  }
+}
