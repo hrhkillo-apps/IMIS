@@ -111,32 +111,39 @@ function App() {
   };
 
   useEffect(() => {
-    // 1. Enable Security
-    enableProtection();
-
-    // 2. Check Session
-    const checkAuth = () => {
-      if (authService.isLoggedIn()) {
-        setIsAuthenticated(true);
-      }
-      setIsLoadingAuth(false);
-    }
-    // Small delay to allow firebase onAuthState to trigger if needed, though local storage check is sync.
-    // Better: We rely on the authService listener we already have? 
-    // Actually, authService.isLoggedIn() is checking session storage (sync).
-    checkAuth();
-
-    // 3. Load existing history from Firebase
-    import('./services/IdService.js').then(({ IdService }) => {
-      IdService.getAllIds().then(history => {
-        if (history) {
-          setIdHistory(history);
+    const initApp = async () => {
+      try {
+        // 1. Enable Security
+        try {
+          enableProtection();
+        } catch (e) {
+          console.warn("Security init failed", e);
         }
-      }).catch(err => {
+
+        // 2. Check Session
+        // We rely on the authService listener we already have? 
+        // Actually, authService.isLoggedIn() is checking session storage (sync).
+        if (authService.isLoggedIn()) {
+          setIsAuthenticated(true);
+        }
+      } catch (err) {
+        console.error("Init failed:", err);
+      } finally {
+        // Always finish loading
+        setIsLoadingAuth(false);
+      }
+
+      // 3. Load existing history from Firebase (Parallel, non-blocking)
+      try {
+        const { IdService } = await import('./services/IdService.js');
+        const history = await IdService.getAllIds();
+        if (history) setIdHistory(history);
+      } catch (err) {
         console.error("Initial ID load failed (Offline?):", err);
-        // We don't block the UI here, but generation will be blocked by strict checks later.
-      });
-    });
+      }
+    };
+
+    initApp();
   }, []);
 
   const handleLogin = () => {
@@ -146,11 +153,8 @@ function App() {
   // Removed handleBackup and handleRestore
 
   if (isLoadingAuth) {
-    return (
-      <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#242424', color: 'white' }}>
-        <div className="spinner" style={{ width: '40px', height: '40px', border: '4px solid rgba(255,255,255,0.3)', borderTop: '4px solid #fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-      </div>
-    );
+    // User filtered: "blank page, without showing login screen"
+    return <div style={{ height: '100vh', width: '100vw', background: '#242424' }}></div>;
   }
 
   const handleFileUpload = (e) => {

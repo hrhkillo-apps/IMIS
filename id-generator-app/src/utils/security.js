@@ -8,6 +8,18 @@ export const enableProtection = () => {
     // 1. Block Right Click
     document.addEventListener('contextmenu', (e) => {
         e.preventDefault();
+        alert("Not permitted by the admin");
+    });
+
+    // 1b. Block Double Click (Selection attempting)
+    document.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        alert("Not permitted by the admin");
+    });
+
+    // 1c. Prevent Selection (Extra safety)
+    document.addEventListener('selectstart', (e) => {
+        e.preventDefault();
     });
 
     // 2. Block Keyboard Shortcuts (F12, Ctrl+Shift+I, Ctrl+C, Ctrl+U)

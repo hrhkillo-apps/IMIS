@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db } from '../firebase.config';
 import { collection, doc, getDocs, setDoc, deleteDoc, updateDoc, onSnapshot } from "firebase/firestore";
 
 const COLLECTION_NAME = 'imis_data_entries';
