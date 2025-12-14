@@ -1,1 +1,0 @@
-import{r as h,u as l}from"./index-8gdahbRe.js";const m=a=>new Promise((n,o)=>{const e=new FileReader;e.onload=r=>{try{const t=new Uint8Array(r.target.result),s=h(t,{type:"array"}),c=s.SheetNames[0],d=s.Sheets[c],i=l.sheet_to_json(d);n(i)}catch(t){o(t)}},e.onerror=r=>o(r),e.readAsArrayBuffer(a)});export{m as readExcelFile};
