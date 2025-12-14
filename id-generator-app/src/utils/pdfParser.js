@@ -202,7 +202,8 @@ export const parseCfmsPdf = async (file) => {
                         'Pan No': pan || '',
                         'Amount': amount || '',
                         'Aadhar No': aadhar || '',
-                        'Reference No': refNo || ''
+                        'Reference No': refNo || '',
+                        'IFSC Code': ifsc || ''
                     });
                 } else {
                     // Line without account number and not consumed by previous record loop

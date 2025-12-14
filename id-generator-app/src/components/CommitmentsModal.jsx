@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useDataEntry } from '../context/DataEntryContext';
+import { useDataEntry } from '../hooks/useDataEntry';
 
 const CommitmentsModal = ({ isOpen, onClose }) => {
     const { entries } = useDataEntry();

@@ -1,0 +1,7 @@
+﻿
+> imis-data-id-manager@1.0.0 build
+> vite build
+
+[36mvite v7.2.7 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mÔ£ô[39m 331 modules transformed.

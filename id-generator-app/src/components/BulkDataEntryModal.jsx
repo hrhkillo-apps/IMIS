@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useToast } from '../hooks/useToast';
-import { useDataEntry } from '../context/DataEntryContext';
+import { useDataEntry } from '../hooks/useDataEntry';
 
 const BulkDataEntryModal = ({ isOpen, onClose }) => {
     const [isProcessing, setIsProcessing] = useState(false);

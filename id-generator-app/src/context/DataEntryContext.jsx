@@ -1,43 +1,28 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DataEntryService } from '../services/DataEntryService';
 import { useToast } from '../hooks/useToast';
-
-const DataEntryContext = createContext();
-
-export const useDataEntry = () => {
-    const context = useContext(DataEntryContext);
-    if (!context) {
-        throw new Error('useDataEntry must be used within a DataEntryProvider');
-    }
-    return context;
-};
+import { DataEntryContext } from './DataEntryContextDefinition';
 
 export const DataEntryProvider = ({ children }) => {
     const [entries, setEntries] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true); // Start loading immediately
     const toast = useToast();
 
     useEffect(() => {
-        loadEntries();
-    }, []);
-
-    const loadEntries = async () => {
-        setLoading(true);
-        try {
-            const data = await DataEntryService.getAllEntries();
+        // Subscribe to real-time updates
+        const unsubscribe = DataEntryService.subscribeToEntries((data) => {
             setEntries(data);
-        } catch (error) {
-            console.error("Failed to load entries:", error);
-            toast.error(`Error loading data: ${error.message}`);
-        } finally {
             setLoading(false);
-        }
-    };
+        });
+
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, []);
 
     const addEntry = async (entry) => {
         try {
-            const newEntry = await DataEntryService.addEntry(entry);
-            setEntries(prev => [...prev, newEntry]);
+            await DataEntryService.addEntry(entry);
+            // No need to update local state, subscription will handle it
             return true;
         } catch (error) {
             console.error("Failed to add entry:", error);
@@ -49,7 +34,6 @@ export const DataEntryProvider = ({ children }) => {
     const updateEntry = async (id, updatedData) => {
         try {
             await DataEntryService.updateEntry(id, updatedData);
-            setEntries(prev => prev.map(item => item.id === id ? { ...item, ...updatedData } : item));
             return true;
         } catch (error) {
             console.error("Failed to update entry:", error);
@@ -61,7 +45,6 @@ export const DataEntryProvider = ({ children }) => {
     const deleteEntry = async (id) => {
         try {
             await DataEntryService.deleteEntry(id);
-            setEntries(prev => prev.filter(item => item.id !== id));
             return true;
         } catch (error) {
             console.error("Failed to delete entry:", error);

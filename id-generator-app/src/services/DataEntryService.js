@@ -1,10 +1,25 @@
 import { db } from './firebase';
-import { collection, doc, getDocs, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, deleteDoc, updateDoc, onSnapshot } from "firebase/firestore";
 
 const COLLECTION_NAME = 'imis_data_entries';
 
 export const DataEntryService = {
-    // Fetch all entries
+    // Subscribe to real-time updates
+    subscribeToEntries: (callback) => {
+        const q = collection(db, COLLECTION_NAME);
+        return onSnapshot(q, (snapshot) => {
+            const entries = [];
+            snapshot.forEach((doc) => {
+                entries.push({ id: doc.id, ...doc.data() });
+            });
+            callback(entries);
+        }, (error) => {
+            console.error("Error in real-time sync:", error);
+            // Optionally pass error to callback if needed, but for now we log
+        });
+    },
+
+    // Fetch all entries (keeping for legacy or one-time use)
     getAllEntries: async () => {
         try {
             const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));

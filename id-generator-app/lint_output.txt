@@ -1,0 +1,32 @@
+﻿
+> imis-data-id-manager@1.0.0 lint
+> eslint .
+
+
+D:\Antigravity IDE\IMIS\id-generator-app\src\App.jsx
+  242:16  error  'e' is defined but never used                                                              no-unused-vars
+  278:13  error  'timestamp' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Antigravity IDE\IMIS\id-generator-app\src\components\ExternalLinks.jsx
+  4:41  error  'onBackup' is defined but never used   no-unused-vars
+  4:51  error  'onRestore' is defined but never used  no-unused-vars
+
+D:\Antigravity IDE\IMIS\id-generator-app\src\components\MatchModal.jsx
+  77:32  error  'matchAndMerge' is not defined  no-undef
+
+D:\Antigravity IDE\IMIS\id-generator-app\src\context\DataEntryContext.jsx
+   7:14  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  22:8   warning  React Hook useEffect has a missing dependency: 'loadEntries'. Either include it or remove the dependency array                  react-hooks/exhaustive-deps
+
+D:\Antigravity IDE\IMIS\id-generator-app\src\hooks\useIdGenerator.js
+  103:22  error  'connErr' is defined but never used  no-unused-vars
+
+D:\Antigravity IDE\IMIS\id-generator-app\src\services\IdService.js
+  2:27  error  'getDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+  2:35  error  'setDoc' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+D:\Antigravity IDE\IMIS\id-generator-app\src\utils\pdfParser.js
+  155:27  error  'ifsc' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+Ô£û 11 problems (10 errors, 1 warning)
+

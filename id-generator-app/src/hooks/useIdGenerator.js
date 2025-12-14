@@ -100,7 +100,7 @@ export const useIdGenerator = () => {
             let currentHistory;
             try {
                 currentHistory = await IdService.getAllIds();
-            } catch (connErr) {
+            } catch {
                 return {
                     success: false,
                     error: "CRITICAL: Cannot connect to Online Storage. \n\nCheck your internet connection or configuration. \nID Generation aborted to prevent duplicates."

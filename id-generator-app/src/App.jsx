@@ -21,7 +21,7 @@ import { useFileProcessor } from './hooks/useFileProcessor';
 import { useIdGenerator } from './hooks/useIdGenerator';
 import { enableProtection } from './utils/security';
 import { authService } from './services/AuthService';
-import { useDataEntry } from './context/DataEntryContext';
+import { useDataEntry } from './hooks/useDataEntry';
 import Footer from './components/Footer';
 
 // Utils & Constants
@@ -239,7 +239,7 @@ function App() {
       let currentHistory;
       try {
         currentHistory = await IdService.getAllIds();
-      } catch (e) {
+      } catch {
         toast.error("Generation Aborted: Cannot connect to online storage.");
         return;
       }
@@ -274,8 +274,8 @@ function App() {
 
       // 5. Export to Excel
       const wsData = [["IMIS Id"], ...generatedList.map(id => [id])];
-      const now = new Date();
-      const timestamp = `${String(now.getDate()).padStart(2, '0')}_${String(now.getMonth() + 1).padStart(2, '0')}_${now.getFullYear()}`;
+
+
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       const wb = XLSX.utils.book_new();
