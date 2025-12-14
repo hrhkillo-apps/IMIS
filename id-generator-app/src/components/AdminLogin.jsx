@@ -16,6 +16,18 @@ const AdminLogin = ({ onLogin }) => {
         } catch (err) {
             console.error("Recaptcha Init Error", err);
         }
+
+        // Cleanup on unmount
+        return () => {
+            if (window.recaptchaVerifier) {
+                try {
+                    window.recaptchaVerifier.clear();
+                } catch (e) {
+                    console.warn("Recaptcha cleanup failed", e);
+                }
+                window.recaptchaVerifier = null;
+            }
+        };
     }, []);
 
     const handleSendOtp = async (e) => {

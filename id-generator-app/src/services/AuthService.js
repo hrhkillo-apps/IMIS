@@ -65,15 +65,27 @@ class AuthService {
      * @param {string} elementId - DOM ID of the container for invisible recaptcha
      */
     initRecaptcha(elementId) {
-        if (!window.recaptchaVerifier) {
-            window.recaptchaVerifier = new RecaptchaVerifier(auth, elementId, {
-                'size': 'invisible',
-                'callback': () => {
-                    // reCAPTCHA solved, allow signInWithPhoneNumber.
-                    // console.log("Recaptcha verified");
-                }
-            });
+        // Clear existing instance to ensure we bind to the new DOM element on re-renders
+        if (window.recaptchaVerifier) {
+            try {
+                window.recaptchaVerifier.clear();
+            } catch (e) {
+                console.warn("Failed to clear old recaptcha", e);
+            }
+            window.recaptchaVerifier = null;
         }
+
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, elementId, {
+            'size': 'invisible',
+            'callback': () => {
+                // reCAPTCHA solved, allow signInWithPhoneNumber.
+                // console.log("Recaptcha verified");
+            },
+            'expired-callback': () => {
+                // Response expired. Ask user to solve reCAPTCHA again.
+                console.warn("Recaptcha expired");
+            }
+        });
     }
 
     /**
