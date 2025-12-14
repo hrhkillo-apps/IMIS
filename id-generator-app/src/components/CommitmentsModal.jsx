@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import { useDataEntry } from '../context/DataEntryContext';
 
 const CommitmentsModal = ({ isOpen, onClose }) => {
+    const { entries } = useDataEntry();
     const [commitmentFile, setCommitmentFile] = useState(null);
+    const [commitmentSource, setCommitmentSource] = useState('upload'); // New State
     const [cfmsFile, setCfmsFile] = useState(null);
     const [sacFile, setSacFile] = useState(null); // New SAC State
     const [isProcessing, setIsProcessing] = useState(false);
@@ -22,11 +25,16 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
     };
 
     const handleProcess = async () => {
-        // Validation: Commitment is MANDATORY.
-        if (!commitmentFile) {
-            alert("Upload Commitment Accounts Excel is mandatory.");
+        // Validation: Commitment is MANDATORY (File OR Server Data)
+        if (commitmentSource === 'upload' && !commitmentFile) {
+            alert("Upload Commitment File is mandatory.");
             return;
         }
+        if (commitmentSource === 'server' && (!entries || entries.length === 0)) {
+            alert("No data found in server database. Please add entries in 'Data Entry' first.");
+            return;
+        }
+
         // At least one secondary file?
         if (!cfmsFile && !sacFile) {
             alert("Please upload at least one secondary file (CFMS or SAC) to process.");
@@ -58,14 +66,29 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
                     reader.readAsArrayBuffer(file);
                 });
 
-                // Read Commitment (Verified strict existence above)
-                const commData = await readExcel(commitmentFile);
+                // Read Commitment Data
+                let commData = [];
+                if (commitmentSource === 'server') {
+                    // Map Server Entries to Expected Format (Must match strict keys in pdfGenerator)
+                    commData = entries.map(e => ({
+                        "NAME OF THE VENDOR": e.vendorName,
+                        "Beneficiary Name": e.beneficiaryName, // Matches pdfGenerator
+                        "ACCOUNT NUMBER": e.accountNumber,     // Matches pdfGenerator strict cap check
+                        "IFSC Code": e.ifscCode,               // Matches pdfGenerator
+                        "AADHAR": e.aadharNumber,
+                        "PAN": e.panCard,
+                        "CFMS ID": e.cfmsId,
+                        "Account Number": e.accountNumber // Duplicate for processor safety if needed
+                    }));
+                } else {
+                    commData = await readExcel(commitmentFile);
+                }
 
                 // Read Optionals
                 const cfmsData = await readExcel(cfmsFile);
                 const sacData = await readExcel(sacFile);
 
-                if (!commData.length) throw new Error("Commitment file is empty.");
+                if (!commData.length) throw new Error("Commitment data is empty.");
                 if (!cfmsData.length && !sacData.length) throw new Error("Secondary files are empty.");
 
                 console.log("Processing...");
@@ -76,6 +99,7 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
                 const vendors = [...new Set(result.map(r => r["NAME OF THE VENDOR"] || "Unknown"))].sort();
 
                 setProcessedData(result);
+                // ... rest of logic unchanged ...
                 setUniqueVendors(['All', ...vendors]);
                 setVendorFilter('All');
                 setViewMode('results');
@@ -219,17 +243,45 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
 
                             {/* 1. Commitment Upload */}
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <label style={{ fontSize: '0.8rem', opacity: 0.9 }}>Commitment Excel</label>
-                                <div style={{
-                                    border: '2px dashed rgba(255,255,255,0.2)', padding: '1rem',
-                                    borderRadius: '8px', textAlign: 'center', cursor: 'pointer',
-                                    background: commitmentFile ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
-                                }}>
-                                    <input type="file" accept=".xlsx" onChange={(e) => handleFileChange(e, 'commitment')} style={{ display: 'none' }} id="comm-upload" />
-                                    <label htmlFor="comm-upload" style={{ cursor: 'pointer', width: '100%', display: 'block', fontSize: '0.8rem' }}>
-                                        {commitmentFile ? <span style={{ color: '#4caf50' }}>{commitmentFile.name}</span> : <span>Click to Browse</span>}
-                                    </label>
+                                <label style={{ fontSize: '0.8rem', opacity: 0.9 }}>Commitment File</label>
+
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <select
+                                        style={{
+                                            flex: 1, padding: '0.5rem', borderRadius: '4px',
+                                            background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)'
+                                        }}
+                                        value={commitmentSource}
+                                        onChange={(e) => setCommitmentSource(e.target.value)}
+                                    >
+                                        <option value="server" style={{ color: 'black' }}>From Server</option>
+                                        <option value="upload" style={{ color: 'black' }}>Upload Device</option>
+                                    </select>
                                 </div>
+
+                                {commitmentSource === 'server' ? (
+                                    <select
+                                        style={{
+                                            width: '100%', padding: '1rem', borderRadius: '8px',
+                                            background: 'rgba(255,255,255,0.05)', color: 'white',
+                                            border: '2px dashed rgba(255,255,255,0.2)'
+                                        }}
+                                        disabled
+                                    >
+                                        <option>Using {entries.length} Live Entries from Database</option>
+                                    </select>
+                                ) : (
+                                    <div style={{
+                                        border: '2px dashed rgba(255,255,255,0.2)', padding: '1rem',
+                                        borderRadius: '8px', textAlign: 'center', cursor: 'pointer',
+                                        background: commitmentFile ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
+                                    }}>
+                                        <input type="file" accept=".xlsx" onChange={(e) => handleFileChange(e, 'commitment')} style={{ display: 'none' }} id="comm-upload" />
+                                        <label htmlFor="comm-upload" style={{ cursor: 'pointer', width: '100%', display: 'block', fontSize: '0.8rem' }}>
+                                            {commitmentFile ? <span style={{ color: '#4caf50' }}>{commitmentFile.name}</span> : <span>Click to Browse</span>}
+                                        </label>
+                                    </div>
+                                )}
                             </div>
 
                             {/* 2. CFMS Upload */}
@@ -308,22 +360,30 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
                                 <thead style={{ position: 'sticky', top: 0, background: '#2c3e50', zIndex: 1 }}>
                                     <tr>
                                         {/* Dynamic S.No Header */}
-                                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>S.No</th>
+                                        <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #ddd' }}>S.No</th>
 
-                                        {processedData && processedData.length > 0 && Object.keys(processedData[0]).map(header => (
-                                            <th key={header} style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>{header}</th>
-                                        ))}
+                                        {processedData && processedData.length > 0 && Object.keys(processedData[0]).map(header => {
+                                            let align = 'left';
+                                            if (header.includes("Payment") || header.includes("Amount") || header.includes("Share") || header.includes("count")) align = 'right';
+                                            return (
+                                                <th key={header} style={{ padding: '10px', textAlign: align, borderBottom: '1px solid #ddd' }}>{header}</th>
+                                            );
+                                        })}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {currentData.map((row, i) => (
                                         <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
                                             {/* Dynamic S.No Cell (1-based index) */}
-                                            <td style={{ padding: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{i + 1}</td>
+                                            <td style={{ padding: '8px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{i + 1}</td>
 
-                                            {Object.values(row).map((val, j) => (
-                                                <td key={j} style={{ padding: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{val}</td>
-                                            ))}
+                                            {Object.keys(row).map((key, j) => {
+                                                const val = row[key];
+                                                let align = 'left';
+                                                if (key.includes("Payment") || key.includes("Amount") || key.includes("Share") || key.includes("count")) align = 'right';
+
+                                                return <td key={j} style={{ padding: '8px', textAlign: align, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{val}</td>
+                                            })}
                                         </tr>
                                     ))}
                                 </tbody>
