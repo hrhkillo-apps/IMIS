@@ -43,6 +43,8 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
 
                 // Read Files Helper
                 const readExcel = (file) => new Promise((resolve, reject) => {
+                    if (!file) return resolve([]); // Handle optional files safely
+
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         try {
@@ -56,14 +58,18 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
                     reader.readAsArrayBuffer(file);
                 });
 
+                // Read Commitment (Verified strict existence above)
                 const commData = await readExcel(commitmentFile);
+
+                // Read Optionals
                 const cfmsData = await readExcel(cfmsFile);
                 const sacData = await readExcel(sacFile);
 
-                if (!commData.length || !cfmsData.length || !sacData.length) throw new Error("One or more files are empty.");
+                if (!commData.length) throw new Error("Commitment file is empty.");
+                if (!cfmsData.length && !sacData.length) throw new Error("Secondary files are empty.");
 
                 console.log("Processing...");
-                // Pass sacData to processor (even if logic isn't fully defined for it yet)
+                // Pass data (callbacks will resolve to [] if file was null)
                 const result = processCommitments(commData, cfmsData, sacData);
 
                 // Extract Vendors for Filter
@@ -88,20 +94,44 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
     const handleDownload = async () => {
         if (!processedData) return;
 
-        const dataToExport = vendorFilter === 'All'
+        let dataToExport = vendorFilter === 'All'
             ? processedData
             : processedData.filter(r => r["NAME OF THE VENDOR"] === vendorFilter);
 
+        // Add Dynamic S.No
+        // We create a new array of objects where "S.No" is the very first key.
+        dataToExport = dataToExport.map((row, index) => ({
+            "S.No": index + 1,
+            ...row
+        }));
+
         if (vendorFilter !== 'All') {
             try {
+                // Determine Report Mode
+                let reportMode = 'both';
+                if (sacFile && !cfmsFile) reportMode = 'sac';
+                else if (!sacFile && cfmsFile) reportMode = 'cfms';
+                // else 'both'
+
                 const { generateVendorPdf } = await import('../utils/pdfGenerator.js');
-                generateVendorPdf(dataToExport, vendorFilter);
+                generateVendorPdf(dataToExport, vendorFilter, reportMode);
             } catch (err) {
                 console.error(err);
-                alert("Error generating PDF");
+                alert("Error generating PDF: " + err.message);
             }
         } else {
             try {
+                // Add Grand Total Row for Excel
+                const totals = calculateTotals(dataToExport);
+                const totalRow = {
+                    "S.No": "",
+                    "NAME OF THE VENDOR": "GRAND TOTAL",
+                    "Proposed Payment Individual": formatINR(totals.proposed),
+                    "Credited Payment Individual": formatINR(totals.credited),
+                    "My Share": formatINR(totals.share)
+                };
+                dataToExport.push(totalRow);
+
                 const XLSX = await import('xlsx');
                 const ws = XLSX.utils.json_to_sheet(dataToExport);
                 const wb = XLSX.utils.book_new();
@@ -123,6 +153,41 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
         setSacFile(null);
         setVendorFilter('All');
     };
+
+    // Helper: Parse Currency String to Float
+    const parseCurrency = (val) => {
+        if (!val) return 0;
+        const clean = String(val).replace(/[^0-9.-]+/g, "");
+        return parseFloat(clean) || 0;
+    };
+
+    // Helper: Format Float to INR String
+    const formatINR = (val) => {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            minimumFractionDigits: 2
+        }).format(val);
+    };
+
+    // Calculate Totals for current view
+    const currentData = processedData
+        ? (vendorFilter === 'All' ? processedData : processedData.filter(r => r["NAME OF THE VENDOR"] === vendorFilter))
+        : [];
+
+    const calculateTotals = (data) => {
+        let proposed = 0;
+        let credited = 0;
+        let share = 0;
+        data.forEach(row => {
+            proposed += parseCurrency(row["Proposed Payment Individual"]);
+            credited += parseCurrency(row["Credited Payment Individual"]);
+            share += parseCurrency(row["My Share"]);
+        });
+        return { proposed, credited, share };
+    };
+
+    const totals = calculateTotals(currentData);
 
     return (
         <div style={{
@@ -242,22 +307,42 @@ const CommitmentsModal = ({ isOpen, onClose }) => {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                                 <thead style={{ position: 'sticky', top: 0, background: '#2c3e50', zIndex: 1 }}>
                                     <tr>
+                                        {/* Dynamic S.No Header */}
+                                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>S.No</th>
+
                                         {processedData && processedData.length > 0 && Object.keys(processedData[0]).map(header => (
                                             <th key={header} style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>{header}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {processedData && processedData
-                                        .filter(row => vendorFilter === 'All' || row["NAME OF THE VENDOR"] === vendorFilter)
-                                        .map((row, i) => (
-                                            <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
-                                                {Object.values(row).map((val, j) => (
-                                                    <td key={j} style={{ padding: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{val}</td>
-                                                ))}
-                                            </tr>
-                                        ))}
+                                    {currentData.map((row, i) => (
+                                        <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+                                            {/* Dynamic S.No Cell (1-based index) */}
+                                            <td style={{ padding: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{i + 1}</td>
+
+                                            {Object.values(row).map((val, j) => (
+                                                <td key={j} style={{ padding: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{val}</td>
+                                            ))}
+                                        </tr>
+                                    ))}
                                 </tbody>
+                                <tfoot style={{ position: 'sticky', bottom: 0, background: '#34495e', fontWeight: 'bold' }}>
+                                    <tr>
+                                        <td style={{ padding: '10px' }}></td>
+                                        {/* Matches mapping of Processed Rows usually. 
+                                            We need to align totals to specific columns: 
+                                            "Proposed Payment Individual", "Credited Payment Individual", "My Share"
+                                        */}
+                                        {processedData && processedData.length > 0 && Object.keys(processedData[0]).map((header, idx) => {
+                                            if (header === "Proposed Payment Individual") return <td key={idx} style={{ padding: '10px' }}>{formatINR(totals.proposed)}</td>;
+                                            if (header === "Credited Payment Individual") return <td key={idx} style={{ padding: '10px' }}>{formatINR(totals.credited)}</td>;
+                                            if (header === "My Share") return <td key={idx} style={{ padding: '10px' }}>{formatINR(totals.share)}</td>;
+                                            if (header === "NAME OF THE VENDOR") return <td key={idx} style={{ padding: '10px' }}>GRAND TOTAL</td>;
+                                            return <td key={idx}></td>;
+                                        })}
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>

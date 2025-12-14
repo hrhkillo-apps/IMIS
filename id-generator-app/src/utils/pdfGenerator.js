@@ -1,17 +1,47 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 /**
  * Generates a PDF for a specific vendor's commitments.
  * @param {Array} data - The array of row objects for the selected vendor.
  * @param {string} vendorName - Name of the vendor.
+ * @param {string} reportMode - 'sac', 'cfms', or 'both' (determines columns/titles).
  */
-export const generateVendorPdf = (data, vendorName) => {
-    const doc = new jsPDF();
+export const generateVendorPdf = (data, vendorName, reportMode) => {
+    // Helper: Clean currency for calculation
+    const parseCurrency = (val) => {
+        if (!val) return 0;
+        // Remove 'Rs.', '₹', commas, spaces, and handle '-'
+        const clean = String(val).replace(/[^0-9.-]+/g, "");
+        // If result is empty or just '-', return 0
+        if (clean === "" || clean === "-") return 0;
+        return parseFloat(clean) || 0;
+    };
 
-    // Title
+    // Helper: Format INR for PDF
+    const formatINR = (num) => {
+        if (isNaN(num)) return "Rs. 0.00";
+        const str = new Intl.NumberFormat('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+        return `Rs. ${str}`;
+    };
+
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    // 1. Dynamic Title
+    let title = `Commitment Analysis: ${vendorName}`;
+    if (reportMode === 'sac') title = `Proposed Payments: ${vendorName}`;
+    else if (reportMode === 'cfms') title = `Credited Payments: ${vendorName}`;
+    else if (reportMode === 'both') title = `Commitment Status Report: ${vendorName}`;
+
     doc.setFontSize(16);
-    doc.text(`Commitment Analysis: ${vendorName}`, 14, 20);
+    doc.text(title, 14, 20);
 
     doc.setFontSize(10);
     const dateStr = new Date().toLocaleDateString();
@@ -23,64 +53,112 @@ export const generateVendorPdf = (data, vendorName) => {
         return;
     }
 
-    // Prepare Table Columns
-    // We want specific columns that are relevant for a report, not usually ALL 30+ columns
-    // Based on user interest:
+    // 2. Prepare Columns & Totals Calculation
     const columns = [
-        { header: 'Beneficiary', dataKey: 'Beneficiary Name' }, // Mapped below
-        { header: 'CFMS ID', dataKey: 'CFMS ID' },
-        { header: 'Aadhar', dataKey: 'AADHAR NUMBER' },
-        { header: 'Account No', dataKey: 'ACCOUNT NUMBER' },
-        { header: 'IFSC', dataKey: 'IFSC Code' },
-        { header: 'Ind. Amt', dataKey: 'Proposed Payment Individual' },
-        { header: 'My Share', dataKey: 'My Share' },
+        { header: 'S.No', dataKey: 'S.No' },
+        { header: 'Beneficiary', dataKey: 'Beneficiary Name' },
+        { header: 'IFSC Code', dataKey: 'IFSC Code' },
+        { header: 'Account Number', dataKey: 'ACCOUNT NUMBER' },
     ];
 
-    // Map Data to match keys (handling the messy keys from Excel)
+    // Dynamic Payment Columns
+    if (reportMode === 'sac' || reportMode === 'both') {
+        columns.push({ header: reportMode === 'both' ? 'Proposed' : 'Proposed Payment', dataKey: 'Proposed Payment Individual' });
+    }
+    if (reportMode === 'cfms' || reportMode === 'both') {
+        columns.push({ header: reportMode === 'both' ? 'Credited' : 'Credited Payment', dataKey: 'Credited Payment Individual' });
+    }
+
+    let totalProposed = 0;
+    let totalCredited = 0;
+
+    // 3. Map Data and Calculate Totals on the fly
     const tableRows = data.map(row => {
-        // Find keys loosely again or expect them from the processed output (which we know)
         const findVal = (key) => {
             const rowKey = Object.keys(row).find(k => k.trim() === key);
             return rowKey ? row[rowKey] : '';
         };
 
+        const rawProposed = findVal('Proposed Payment Individual');
+        const rawCredited = findVal('Credited Payment Individual');
+
+        // Accumulate Raw Values (Safest)
+        totalProposed += parseCurrency(rawProposed);
+        totalCredited += parseCurrency(rawCredited);
+
+        const formatCell = (val) => {
+            if (!val) return '-';
+            // Replace ₹ symbol with Rs. if present
+            return String(val).replace(/₹/g, 'Rs.').trim();
+        };
+
         return {
+            'S.No': row['S.No'] || '-',
             'Beneficiary Name': findVal('NAME OF THE BENEFICIARY') || findVal('Beneficiary Name'),
-            'CFMS ID': findVal('CFMS ID'),
-            'AADHAR NUMBER': findVal('AADHAR NUMBER') || findVal('AADHAR'),
-            'ACCOUNT NUMBER': findVal('ACCOUNT NUMBER'),
             'IFSC Code': findVal('IFSC Code') || findVal('IFSC'),
-            'Proposed Payment Individual': findVal('Proposed Payment Individual'),
-            'My Share': findVal('My Share') || '-'
+            'ACCOUNT NUMBER': findVal('ACCOUNT NUMBER'),
+            'Proposed Payment Individual': formatCell(rawProposed),
+            'Credited Payment Individual': formatCell(rawCredited)
         };
     });
 
-    // Add Totals Row
-    // Since we filtered by vendor, the Aggregates are likely on the FIRST row of 'data'.
-    // Let's grab them.
-    const firstRow = data[0];
-    const totalAmount = firstRow['Proposed Payment Vendor'];
-    const totalShare = firstRow['My Share'] !== '' ? firstRow['My Share'] :
-        // If first row didn't have it (e.g. we passed non-raw data), we recalc or look for it.
-        // But in our processor, we put it on the first row of the VENDOR block.
-        // If 'data' passed here IS that block, row 0 has it.
-        tableRows.reduce((sum, r) => sum + (parseFloat(r['My Share']) || 0), 0).toFixed(2);
+    // Footer Row
+    const footerRow = ['', 'TOTAL:', '', '']; // S.No, Ben, IFSC, Acc
+    if (reportMode === 'sac' || reportMode === 'both') footerRow.push(formatINR(totalProposed));
+    if (reportMode === 'cfms' || reportMode === 'both') footerRow.push(formatINR(totalCredited));
 
-    doc.autoTable({
+    // Shared Table Options for A4 Portrait Autofit (No Wrap)
+    const tableOptions = {
         startY: 35,
         columns: columns,
         body: tableRows,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [41, 128, 185] },
-        foot: [[
-            'TOTALS:', '', '', '', '',
-            firstRow['Proposed Payment Vendor'] || '-',
-            totalShare
-        ]],
-        footStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: 'bold' }
-    });
+        theme: 'grid', // 'grid' has borders, better for data
+        styles: {
+            fontSize: 7, // Smaller font to fit more
+            overflow: 'ellipsize', // PREVENT WRAPPING
+            cellPadding: 2,
+            valign: 'middle'
+        },
+        headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            halign: 'center',
+            fontStyle: 'bold'
+        },
+        // Auto-arrange columns. Only anchor specific small columns if needed.
+        columnStyles: {
+            'S.No': { halign: 'center', cellWidth: 10 },
+            // Let others autofit based on content and page width.
+            // Alignment tweaks:
+            'Proposed Payment Individual': { halign: 'right' },
+            'Credited Payment Individual': { halign: 'right' },
+            'Beneficiary Name': { halign: 'left' }
+        },
+        margin: { top: 35, left: 10, right: 10, bottom: 20 },
+        foot: [footerRow],
+        footStyles: {
+            fillColor: [220, 220, 220],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            halign: 'right'
+            // Note: autoTable footer aligns match body columns usually, but let's leave it automatic.
+        },
+        // Force Total label to match Beneficiary alignment or stick to column
+        didParseCell: (data) => {
+            if (data.section === 'foot' && data.column.dataKey === 'Beneficiary Name') {
+                data.cell.styles.halign = 'right';
+            }
+        }
+    };
 
-    // Save
+    if (typeof autoTable === 'function') {
+        autoTable(doc, tableOptions);
+    } else if (typeof doc.autoTable === 'function') {
+        doc.autoTable(tableOptions);
+    } else {
+        throw new Error("PDF Table plugin (autoTable) failed to load.");
+    }
+
     const safeName = vendorName.replace(/[^a-z0-9]/gi, '_');
-    doc.save(`${safeName}_Commitment_Report.pdf`);
+    doc.save(`${safeName}_Report.pdf`);
 };

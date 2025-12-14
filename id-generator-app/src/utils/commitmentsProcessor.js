@@ -9,6 +9,7 @@
  * 5. Aggregates (Counts/Totals) are calculated per file type (Proposed vs Credited).
  * 6. 'My Share' (55%) is calculated on Credited Vendor Total (if available), else Proposed.
  * 7. Aggregates/Share shown ONLY on the first row of each Vendor group.
+ * 8. 'Total Accounts Count' is based on the MASTER Commitment file counts for that vendor.
  */
 export const processCommitments = (commitmentData, cfmsData, sacData) => {
     // 1. Validate Mandatory Commitment File
@@ -52,7 +53,16 @@ export const processCommitments = (commitmentData, cfmsData, sacData) => {
         });
     }
 
-    // 3. Process Commitment Rows
+    // 3. Pre-calculate Master Counts per Vendor
+    // We want "Total Accounts count" to represent the TOTAL rows in the Commitment File for that vendor,
+    // regardless of whether they matched SAC or CFMS.
+    const masterVendorCounts = {};
+    commitmentData.forEach(row => {
+        const vName = getValue(row, "NAME OF THE VENDOR") || "Unknown Vendor";
+        masterVendorCounts[vName] = (masterVendorCounts[vName] || 0) + 1;
+    });
+
+    // 4. Process Commitment Rows (Filtering & Matching)
     const matches = [];
     const vendorStats = {}; // { VendorName: { proposedCount: 0, proposedTotal: 0, creditedCount: 0, creditedTotal: 0 } }
 
@@ -67,9 +77,6 @@ export const processCommitments = (commitmentData, cfmsData, sacData) => {
             const sacMatch = sacMap.get(accStr);
 
             // We only keep row if it matched SOMETHING relevant to the uploaded files.
-            // If user uploaded ONLY CFMS, we keep CFMS matches.
-            // If user uploaded ONLY SAC, we keep SAC matches.
-            // If user uploaded BOTH, we keep if matched EITHER.
             const hasRelevantMatch = (cfmsData?.length && cfmsMatch) || (sacData?.length && sacMatch);
 
             if (hasRelevantMatch) {
@@ -113,13 +120,26 @@ export const processCommitments = (commitmentData, cfmsData, sacData) => {
         throw new Error("No matches found. Check 'Account Number' columns.");
     }
 
-    // 4. Sort Matches by Vendor (Critical for grouping)
+    // 5. Sort Matches by Vendor (Critical for grouping)
     matches.sort((a, b) => (a.vendorName || "").localeCompare(b.vendorName || ""));
 
-    // 5. Construct Final Output
+    // Helper: Indian Currency Formatter
+    const formatINR = (val) => {
+        if (val === undefined || val === null || val === '') return '';
+        const num = parseFloat(val);
+        if (isNaN(num)) return val;
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            minimumFractionDigits: 2
+        }).format(num);
+    };
+
+    // 6. Construct Final Output
     const processedRows = [];
     const seenVendors = new Set();
 
+    // If output is grouped, we need to map via sorted matches
     matches.forEach(({ commRow, vendorName, proposedAmt, creditedAmt }) => {
         const stats = vendorStats[vendorName];
 
@@ -129,7 +149,6 @@ export const processCommitments = (commitmentData, cfmsData, sacData) => {
         }
 
         // Calculate Share
-        // Priority: Share of Credited. If 0 (e.g. SAC only), Share of Proposed.
         const baseTotal = stats.creditedTotal > 0 ? stats.creditedTotal : stats.proposedTotal;
         const myShareTotal = baseTotal * 0.55;
 
@@ -149,20 +168,17 @@ export const processCommitments = (commitmentData, cfmsData, sacData) => {
         if (isFirstVendorRow) {
             // SAC -> Proposed Stats
             setCol("Proposed Accounts count", stats.proposedCount);
-            setCol("Proposed Payment Vendor", stats.proposedTotal);
+            setCol("Proposed Payment Vendor", formatINR(stats.proposedTotal));
 
             // CFMS -> Credited Stats
-            setCol("Total Accounts count", stats.creditedCount || stats.proposedCount); // Fallback? or just credited logic? "Total" is ambiguous. Let's use Credited (actual) or Proposed (plan). 
-            // User requested: "Total Accounts count... based on the vendor name". 
-            // Often Total means "The list size". Here, let's sum distinct matches? Or just use one.
-            // Let's defer to "Proposed Count" if Credited is 0.
-            setCol("Total Accounts count", stats.creditedCount > 0 ? stats.creditedCount : stats.proposedCount);
+            // For Total Accounts, use the MASTER count from the commitment file
+            setCol("Total Accounts count", masterVendorCounts[vendorName] || 0);
 
             setCol("Credited Accounts count", stats.creditedCount);
-            setCol("Credited Payment Vendor", stats.creditedTotal);
+            setCol("Credited Payment Vendor", formatINR(stats.creditedTotal));
 
             // Share
-            setCol("My Share", myShareTotal.toFixed(2));
+            setCol("My Share", formatINR(myShareTotal));
         } else {
             // Blank out for subsequent rows
             setCol("Total Accounts count", "");
@@ -173,16 +189,69 @@ export const processCommitments = (commitmentData, cfmsData, sacData) => {
             setCol("My Share", "");
         }
 
-        // --- INDIVIDUAL AMOUNTS (Every Row where applicable) ---
-        // Only overwrite if we actually had a match (value not null) OR we want to clear it?
-        // User said "Fetch data... in [section] only".
-        // Implies: If matched in SAC, fill Proposed. If not matched, leave blank or 0.
-        // If matched in CFMS, fill Credited.
+        // --- INDIVIDUAL AMOUNTS ---
+        setCol("Proposed Payment Individual", proposedAmt !== null ? formatINR(proposedAmt) : "");
+        setCol("Credited Payment Individual", creditedAmt !== null ? formatINR(creditedAmt) : "");
 
-        setCol("Proposed Payment Individual", proposedAmt !== null ? proposedAmt : "");
-        setCol("Credited Payment Individual", creditedAmt !== null ? creditedAmt : "");
+        // --- REORDER COLUMNS ---
+        // User requested: "after ACCOUNT NUMBER, Total Accounts count to be shown accordingly"
+        // We reconstruct the object to enforce this order.
 
-        processedRows.push(newRow);
+        const orderedRow = {};
+        const originalKeys = Object.keys(commRow); // Keys from original file order
+        const accKey = getKey(commRow, "ACCOUNT NUMBER") || getKey(commRow, "Account") || getKey(commRow, "Acc No");
+
+        // The block of calculated columns we want to inject
+        const calculatedKeys = [
+            "Total Accounts count",
+            "Proposed Accounts count",
+            "Proposed Payment Individual",
+            "Proposed Payment Vendor",
+            "Credited Accounts count",
+            "Credited Payment Individual",
+            "Credited Payment Vendor",
+            "My Share"
+        ];
+
+        let accFound = false;
+
+        // 1. Add keys from original file, inserting block after Account Number
+        originalKeys.forEach(k => {
+            // If the original file ALREADY had these columns (e.g. as empty headers), skip them here 
+            // so we don't duplicate or place them in old position. We want them strictly after Account No.
+            // However, our `setCol` might have updated `newRow[k]`. 
+            // We use `newRow[k]` for value, but decide order based on `originalKeys`.
+
+            // Check if k is one of our calculated keys (fuzzy match?)
+            // Ideally exact match since we used specific strings in setCol.
+            if (calculatedKeys.includes(k)) return;
+
+            orderedRow[k] = newRow[k];
+
+            if (k === accKey) {
+                accFound = true;
+                // Inject the block
+                calculatedKeys.forEach(chk => {
+                    orderedRow[chk] = newRow[chk];
+                });
+            }
+        });
+
+        // 2. If Account Number wasn't found in loop (unlikely given matches), or if calculated keys weren't inserted:
+        if (!accFound) {
+            // Just append them at the end
+            calculatedKeys.forEach(chk => {
+                if (orderedRow[chk] === undefined) {
+                    orderedRow[chk] = newRow[chk];
+                }
+            });
+        }
+
+        // 3. Catch-all: If original file didn't have Account Number key in standard iteration (maybe added later?), ensure we didn't drop data.
+        // (The logic above covers original keys. `newRow` might have extra keys if we added them via setCol and they weren't in calcBlock or original. 
+        //  But `setCol` currently only adds the calcBlock keys.)
+
+        processedRows.push(orderedRow);
     });
 
     return processedRows;
