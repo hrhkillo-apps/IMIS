@@ -33,13 +33,10 @@ const BulkDataEntryModal = ({ isOpen, onClose }) => {
 
         setIsProcessing(true);
         try {
-            const XLSX = await import('xlsx');
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+            const { readExcelFile } = await import('../utils/excelUtils');
+            const jsonData = await readExcelFile(file);
 
-            if (jsonData.length === 0) {
+            if (!jsonData || jsonData.length === 0) {
                 toast.error("File is empty or invalid format.");
                 setIsProcessing(false);
                 return;

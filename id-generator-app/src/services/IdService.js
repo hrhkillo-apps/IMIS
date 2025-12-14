@@ -16,7 +16,7 @@ export const IdService = {
                 ticket: new Set(),
                 ftr: new Set(),
                 reg: new Set(),
-                aadhar: new Set() // New Set
+                aadhar: new Set()
             };
 
             const [ticketSnapshot, ftrSnapshot, regSnapshot, aadharSnapshot] = await Promise.all([
@@ -33,8 +33,11 @@ export const IdService = {
 
             return history;
         } catch (error) {
-            console.error("Critical Error: Failed to connect to Firebase:", error);
-            throw new Error("CONNECTION_FAILED: Could not fetch ID history. Check internet or Firebase config.");
+            console.error("ID Fetch Error:", error);
+            // With persistence enabled, this usually only throws if permission denied or critical failure.
+            // If offline, getDocs should return cached data or wait.
+            // We'll re-throw for the UI to decide whether to block or warn.
+            throw new Error("Could not fetch ID history. Ensure you are online for first run or have cached data.");
         }
     },
 

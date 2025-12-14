@@ -66,6 +66,7 @@ function App() {
 
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true); // STARTING LOADING STATE
 
   // Data Entry State
   const { entries, addEntry, updateEntry, deleteEntry } = useDataEntry();
@@ -114,9 +115,16 @@ function App() {
     enableProtection();
 
     // 2. Check Session
-    if (authService.isLoggedIn()) {
-      setIsAuthenticated(true);
+    const checkAuth = () => {
+      if (authService.isLoggedIn()) {
+        setIsAuthenticated(true);
+      }
+      setIsLoadingAuth(false);
     }
+    // Small delay to allow firebase onAuthState to trigger if needed, though local storage check is sync.
+    // Better: We rely on the authService listener we already have? 
+    // Actually, authService.isLoggedIn() is checking session storage (sync).
+    checkAuth();
 
     // 3. Load existing history from Firebase
     import('./services/IdService.js').then(({ IdService }) => {
@@ -136,6 +144,14 @@ function App() {
   };
 
   // Removed handleBackup and handleRestore
+
+  if (isLoadingAuth) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#242424', color: 'white' }}>
+        <div className="spinner" style={{ width: '40px', height: '40px', border: '4px solid rgba(255,255,255,0.3)', borderTop: '4px solid #fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+      </div>
+    );
+  }
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
