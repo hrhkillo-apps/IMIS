@@ -12,12 +12,13 @@ import AdminLogin from './components/AdminLogin';
 import TallyModal from './components/TallyModal';
 import ImisIdModal from './components/ImisIdModal';
 import MatchModal from './components/MatchModal';
-import PdfToExcelModal from './components/PdfToExcelModal';
+import CommitmentsModal from './components/CommitmentsModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useFileProcessor } from './hooks/useFileProcessor';
 import { useIdGenerator } from './hooks/useIdGenerator';
 import { enableProtection } from './utils/security';
 import { authService } from './services/AuthService';
+import Footer from './components/Footer';
 
 // Utils & Constants
 import { REQUIRED_COLUMNS } from './constants';
@@ -53,8 +54,8 @@ function App() {
   // Match CFMS Modal State
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
 
-  // PDF to Excel Modal State
-  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  // Commitments Modal State
+  const [isCommitmentsModalOpen, setIsCommitmentsModalOpen] = useState(false);
 
   // Load History on Mount
   const [idHistory, setIdHistory] = useState({ ticket: new Set(), ftr: new Set(), reg: new Set() });
@@ -71,12 +72,16 @@ function App() {
       setIsAuthenticated(true);
     }
 
-    // 3. Load existing history from local storage
-    import('./utils/storage.js').then(({ IDStorage }) => {
-      const history = IDStorage.loadHistory();
-      if (history) {
-        setIdHistory(history);
-      }
+    // 3. Load existing history from Firebase
+    import('./services/IdService.js').then(({ IdService }) => {
+      IdService.getAllIds().then(history => {
+        if (history) {
+          setIdHistory(history);
+        }
+      }).catch(err => {
+        console.error("Initial ID load failed (Offline?):", err);
+        // We don't block the UI here, but generation will be blocked by strict checks later.
+      });
     });
   }, []);
 
@@ -84,46 +89,7 @@ function App() {
     setIsAuthenticated(true);
   };
 
-  const handleBackup = async () => {
-    const { IDStorage } = await import('./utils/storage.js');
-    const data = IDStorage.exportHistoryData();
-    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `imis_id_history_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleRestore = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        try {
-          const { IDStorage } = await import('./utils/storage.js');
-          const result = IDStorage.importHistoryData(evt.target.result);
-          if (result.success) {
-            toast.success(`History Restored Successfully! (Items: ${result.count})`);
-            const history = IDStorage.loadHistory();
-            setIdHistory(history);
-          } else {
-            toast.error("Restore Failed: " + result.error);
-          }
-        } catch (err) {
-          console.error(err);
-          toast.error("Invalid Backup File");
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
+  // Removed handleBackup and handleRestore
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -162,7 +128,37 @@ function App() {
 
     try {
       const { generateValidAadhar, generateInvalidAadhar } = await import('./utils/aadharGenerator.js');
-      let dataList = type === 'valid' ? generateValidAadhar(count) : generateInvalidAadhar(count);
+      const { IdService } = await import('./services/IdService.js');
+
+      // 1. Fetch History if Valid
+      let existingAadharSet = new Set();
+      if (type === 'valid') {
+        const history = await IdService.getAllIds();
+        existingAadharSet = history.aadhar;
+      }
+
+      // 2. Generate
+      let dataList = [];
+      if (type === 'valid') {
+        // Pass existing set to ensure uniqueness
+        dataList = generateValidAadhar(count, existingAadharSet);
+      } else {
+        // Invalid generator usually doesn't need history check, but consistent
+        dataList = generateInvalidAadhar(count);
+      }
+
+      // 3. Save "Valid" IDs to Firebase
+      if (type === 'valid' && dataList.length > 0) {
+        await IdService.saveBatch({
+          ticket: new Set(), ftr: new Set(), reg: new Set(),
+          aadhar: new Set(dataList)
+        });
+
+        // Update local state if we were tracking it, but here we just re-fetch next time or rely on service
+        toast.success(`Generated ${count} unique Aadhar IDs and saved to Database!`);
+      } else {
+        toast.success(`Generated ${count} Invalid Aadhar numbers (Not saved to DB).`);
+      }
 
       const wsData = [["Aadhar Number"], ...dataList.map(n => [n])];
       const now = new Date();
@@ -174,10 +170,8 @@ function App() {
       const filename = `${type}_aadhar_${timestamp}.xlsx`;
       XLSX.writeFile(wb, filename);
 
-      XLSX.writeFile(wb, filename);
-
-      toast.success(`Generated ${count} ${type} Aadhar numbers!`);
     } catch (err) {
+      console.error(err);
       toast.error('Error: ' + err.message);
     }
   };
@@ -192,10 +186,17 @@ function App() {
 
     try {
       const { generateBeneficiaryRegId } = await import('./utils/idGenerator.js');
-      const { IDStorage } = await import('./utils/storage.js');
+      const { IdService } = await import('./services/IdService.js');
 
-      // 1. Load full history to ensure global uniqueness
-      const currentHistory = IDStorage.loadHistory();
+      // 1. STRICT CONNECTION CHECK & Load full history
+      // We explicitly fetch here to ensure we are online and have latest data.
+      let currentHistory;
+      try {
+        currentHistory = await IdService.getAllIds();
+      } catch (e) {
+        toast.error("Generation Aborted: Cannot connect to online storage.");
+        return;
+      }
 
       // 2. Create a working set initialized with existing REG IDs
       // We clone it to avoid mutating the original state immediately, 
@@ -215,14 +216,14 @@ function App() {
       }
 
       // 3. Save the new batch to persistent storage
-      IDStorage.saveBatch({
+      await IdService.saveBatch({
         ticket: new Set(),
         ftr: new Set(),
         reg: newBatchIds
       });
 
       // 4. Update local state history so the main app knows about these new IDs too
-      const updatedHistory = IDStorage.loadHistory();
+      const updatedHistory = await IdService.getAllIds();
       setIdHistory(updatedHistory);
 
       // 5. Export to Excel
@@ -297,9 +298,9 @@ function App() {
           onClose={() => setIsMatchModalOpen(false)}
         />
 
-        <PdfToExcelModal
-          isOpen={isPdfModalOpen}
-          onClose={() => setIsPdfModalOpen(false)}
+        <CommitmentsModal
+          isOpen={isCommitmentsModalOpen}
+          onClose={() => setIsCommitmentsModalOpen(false)}
         />
 
         <Header />
@@ -346,13 +347,13 @@ function App() {
 
         <ExternalLinks
           onAadharClick={() => setIsAadharModalOpen(true)}
-          onBackup={handleBackup}
-          onRestore={handleRestore}
           onTallyClick={() => setIsTallyModalOpen(true)}
           onImisClick={() => setIsImisModalOpen(true)}
           onMatchClick={() => setIsMatchModalOpen(true)}
-          onPdfConvertClick={() => setIsPdfModalOpen(true)}
+          onCommitmentsClick={() => setIsCommitmentsModalOpen(true)}
         />
+
+        <Footer />
       </div>
     </ErrorBoundary>
   );

@@ -55,21 +55,36 @@ export const generateVerhoeff = (num) => {
 };
 
 /**
- * Generates N valid Aadhar numbers.
+ * Generates N valid Aadhar numbers, ensuring they don't exist in the provided history.
  */
-export const generateValidAadhar = (count) => {
+export const generateValidAadhar = (count, existingIds = new Set()) => {
     const list = [];
-    for (let i = 0; i < count; i++) {
-        // Generate 11 random digits
-        // Generate 11 random digits
-        // Ideally ensure first digit is not 0 or 1 per some rules, but standard random 11 digit is fine usually.
-        // Actually Aadhar doesn't start with 0 or 1 usually. Let's use 2-9 range for first digit.
-        const firstObj = Math.floor(Math.random() * 8) + 2; // 2-9
-        const rest = Math.floor(Math.random() * 10000000000); // 10 digits
-        const base = `${firstObj}${String(rest).padStart(10, '0')}`;
+    const maxAttempts = 5000;
 
-        const checksum = generateVerhoeff(base);
-        list.push(`${base}${checksum}`);
+    for (let i = 0; i < count; i++) {
+        let attempts = 0;
+        let generated = null;
+
+        do {
+            // Generate 11 random digits
+            const firstObj = Math.floor(Math.random() * 8) + 2; // 2-9
+            const rest = Math.floor(Math.random() * 10000000000); // 10 digits
+            const base = `${firstObj}${String(rest).padStart(10, '0')}`;
+            const checksum = generateVerhoeff(base);
+            const candidate = `${base}${checksum}`;
+
+            if (!existingIds.has(candidate)) {
+                generated = candidate;
+            }
+            attempts++;
+        } while (!generated && attempts < maxAttempts);
+
+        if (generated) {
+            list.push(generated);
+            existingIds.add(generated); // Prevent duplicates within same batch
+        } else {
+            throw new Error("Unable to generate unique Aadhar Number. Space exhausted?");
+        }
     }
     return list;
 };

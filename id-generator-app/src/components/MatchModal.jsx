@@ -24,22 +24,35 @@ const MatchModal = ({ isOpen, onClose }) => {
         try {
             // dynamic imports
             const XLSX = await import('xlsx');
-            const { parseCfmsPdf } = await import('../utils/pdfParser.js');
-            const { matchAndMerge } = await import('../utils/dataMatcher.js');
-
-            // 1. Process CFMS PDF
-            console.log("Parsing PDF...");
-            const cfmsData = await parseCfmsPdf(cfmsFile);
+            // 1. Process CFMS Excel
+            console.log("Reading CFMS Excel...");
+            const cfmsData = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[firstSheetName];
+                        const json = XLSX.utils.sheet_to_json(sheet);
+                        resolve(json);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(cfmsFile);
+            });
             console.log("CFMS Data:", cfmsData);
 
             if (!cfmsData || cfmsData.length === 0) {
-                alert("No data found in PDF. Please check the file format.");
+                alert("No data found in CFMS Excel.");
                 setIsProcessing(false);
                 return;
             }
 
             // 2. Process SAC Excel
-            console.log("Reading Excel...");
+            console.log("Reading SAC Excel...");
             const sacData = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -109,7 +122,7 @@ const MatchModal = ({ isOpen, onClose }) => {
                 <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem' }}>
                     {/* CFMS Upload */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ fontSize: '0.9rem', opacity: 0.9 }}>Upload CFMS .pdf file</label>
+                        <label style={{ fontSize: '0.9rem', opacity: 0.9 }}>Upload CFMS Excel file</label>
                         <div style={{
                             border: '2px dashed rgba(255,255,255,0.2)', padding: '1rem',
                             borderRadius: '8px', textAlign: 'center', cursor: 'pointer',
@@ -117,7 +130,7 @@ const MatchModal = ({ isOpen, onClose }) => {
                         }}>
                             <input
                                 type="file"
-                                accept=".pdf"
+                                accept=".xlsx"
                                 onChange={(e) => handleFileChange(e, 'cfms')}
                                 style={{ display: 'none' }}
                                 id="cfms-upload"
@@ -135,7 +148,7 @@ const MatchModal = ({ isOpen, onClose }) => {
 
                     {/* SAC Upload */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <label style={{ fontSize: '0.9rem', opacity: 0.9 }}>Upload SAC .xlsx file</label>
+                        <label style={{ fontSize: '0.9rem', opacity: 0.9 }}>Upload SAC Excel file</label>
                         <div style={{
                             border: '2px dashed rgba(255,255,255,0.2)', padding: '1rem',
                             borderRadius: '8px', textAlign: 'center', cursor: 'pointer',
@@ -143,7 +156,7 @@ const MatchModal = ({ isOpen, onClose }) => {
                         }}>
                             <input
                                 type="file"
-                                accept=".xlsx, .xls"
+                                accept=".xlsx"
                                 onChange={(e) => handleFileChange(e, 'sac')}
                                 style={{ display: 'none' }}
                                 id="sac-upload"

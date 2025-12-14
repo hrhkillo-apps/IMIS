@@ -17,7 +17,7 @@ export const PREDEFINED_LINKS = [
     { label: 'SAC', url: 'https://sac.ap.gov.in/internal' },
     { label: 'New Added Data Finder', url: '#' },
     { label: 'Match CFMS with SAC', url: '#' },
-    { label: 'Convert .pdf to .xlsx', url: '#' },
+    { label: 'Show the commitments', url: '#' },
     { label: 'IMIS id Generator', url: '#' }
 ];
 

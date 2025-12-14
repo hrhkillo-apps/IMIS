@@ -91,7 +91,21 @@ export const useIdGenerator = () => {
         try {
             const { generateTicketNumber, generateFTRNumber, generateBeneficiaryRegId, generateName, validateRow } = await import('../utils/idGenerator.js');
             const { synthesizeRows } = await import('../utils/dataSynthesizer.js');
-            const { IDStorage } = await import('../utils/storage.js');
+            // USE ID SERVICE INSTEAD OF LOCAL STORAGE
+            const { IdService } = await import('../services/IdService.js');
+
+            // 0. STRICT CONNECTION CHECK
+            // We must ensure we can talk to Firebase before doing ANYTHING.
+            // If the initial ID load failed or network is down, we cannot proceed.
+            let currentHistory;
+            try {
+                currentHistory = await IdService.getAllIds();
+            } catch (connErr) {
+                return {
+                    success: false,
+                    error: "CRITICAL: Cannot connect to Online Storage. \n\nCheck your internet connection or configuration. \nID Generation aborted to prevent duplicates."
+                };
+            }
 
             const ticketIdx = headers.indexOf('Ticket Number');
             const ftrIdx = headers.indexOf('FTR Number');
@@ -107,11 +121,11 @@ export const useIdGenerator = () => {
             const ifscIdx = headers.indexOf('IFSC Code');
             const nankAccIdx = headers.indexOf('Nank Account Number');
 
-            // Initialize local tracking sets
+            // Initialize local tracking sets from the FRESHLY fetched history
             const existingIds = {
-                ticket: new Set(idHistory.ticket),
-                ftr: new Set(idHistory.ftr),
-                reg: new Set(idHistory.reg)
+                ticket: new Set(currentHistory.ticket),
+                ftr: new Set(currentHistory.ftr),
+                reg: new Set(currentHistory.reg)
             };
 
             const newGeneratedIds = {
@@ -202,8 +216,8 @@ export const useIdGenerator = () => {
                 finalData = updatedData;
             }
 
-            // 3. Save to Storage
-            IDStorage.saveBatch(newGeneratedIds);
+            // 3. Save to Firebase Service
+            await IdService.saveBatch(newGeneratedIds);
 
             // 4. Post-process (Serial No, Formatting)
             const slNoIdx = headers.findIndex(h => {
@@ -247,13 +261,18 @@ export const useIdGenerator = () => {
             XLSX.writeFile(wb, outName);
 
             // Return new history snapshot and data
+            // Fetch updated history from service to ensure sync? 
+            // OR just return the local accumulation. 
+            // Let's re-fetch to be safe and consistent with "reads the online backup directly"
+            const updatedHistory = await IdService.getAllIds();
+
             return {
                 success: true,
                 finalData,
-                newHistory: IDStorage.loadHistory(),
+                newHistory: updatedHistory,
                 message: countToAdd > 0
-                    ? `SUCCESS!\n\nGenerated ${newRowsCount} NEW rows.\nIDs saved to History.`
-                    : `SUCCESS!\n\nProcessed ${finalData.length} rows.\nIDs saved to History.`
+                    ? `SUCCESS!\n\nGenerated ${newRowsCount} NEW rows.\nIDs saved to Firebase.`
+                    : `SUCCESS!\n\nProcessed ${finalData.length} rows.\nIDs saved to Firebase.`
             };
 
         } catch (err) {
