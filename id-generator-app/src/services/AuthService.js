@@ -1,15 +1,12 @@
-/**
- * AuthService
- * Centralized service for handling authentication and session management.
- */
+import { auth } from '../firebase.config';
+import {
+    RecaptchaVerifier,
+    signInWithPhoneNumber,
+    signOut,
+    onAuthStateChanged
+} from "firebase/auth";
 
-// Production Hash (SHA-256 of the access code 112730)
-// In a real server-backed app, this would be validated on the server.
-const AUTH_HASH = "e978ad50fe4a49ba104ecd5bae8130a3921c56ceb615e4b27018ffd2f2675508";
-const SALT = "IMIS_SECURE_LAYER_V1";
 const SESSION_KEY = "imis_auth";
-const EXPIRY_KEY = "imis_auth_expiry";
-const SESSION_DURATION = 30 * 60 * 1000; // 30 Minutes
 
 // Session Storage Wrapper (to handle potential errors in restricted environments)
 const storage = {
@@ -40,80 +37,101 @@ const storage = {
 class AuthService {
     constructor() {
         this.isAuthenticated = false;
-        // Initialize state from storage
-        const storedAuth = storage.getItem(SESSION_KEY);
-        const storedExpiry = storage.getItem(EXPIRY_KEY);
+        this.user = null;
+        this.confirmationResult = null; // Store OTP confirmation result
 
-        if (storedAuth === 'true' && storedExpiry) {
-            if (Date.now() < parseInt(storedExpiry, 10)) {
+        // Initialize state from storage/firebase listener
+        // Note: onAuthStateChanged is async, so initial state might delay slightly.
+        this.initAuth();
+    }
+
+    initAuth() {
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
                 this.isAuthenticated = true;
+                this.user = user;
+                storage.setItem(SESSION_KEY, 'true');
             } else {
-                this.logout(); // Auto cleanup if expired
+                this.isAuthenticated = false;
+                this.user = null;
+                storage.removeItem(SESSION_KEY);
             }
+        });
+    }
+
+    /**
+     * Initializes the ReCaptcha verifier.
+     * Must be called after the DOM element is available.
+     * @param {string} elementId - DOM ID of the container for invisible recaptcha
+     */
+    initRecaptcha(elementId) {
+        if (!window.recaptchaVerifier) {
+            window.recaptchaVerifier = new RecaptchaVerifier(auth, elementId, {
+                'size': 'invisible',
+                'callback': (response) => {
+                    // reCAPTCHA solved, allow signInWithPhoneNumber.
+                    // console.log("Recaptcha verified");
+                }
+            });
         }
     }
 
     /**
-     * Verifies the input code against the stored hash.
-     * @param {string} inputCode 
+     * Sends OTP to the provided phone number.
+     * @param {string} phoneNumber - Format +91XXXXXXXXXX
      * @returns {Promise<boolean>}
      */
-    async verifyCode(inputCode) {
-        if (!inputCode) return false;
+    async sendOtp(phoneNumber) {
+        try {
+            const appVerifier = window.recaptchaVerifier;
+            this.confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+            return true;
+        } catch (error) {
+            console.error("SMS Error:", error);
+            // Reset recaptcha if error occurs so user can try again
+            if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+                window.recaptchaVerifier = null;
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Verifies the OTP entered by the user.
+     * @param {string} code - The 6 digit SMS code
+     * @returns {Promise<boolean>}
+     */
+    async verifyOtp(code) {
+        if (!this.confirmationResult) throw new Error("No OTP request found.");
 
         try {
-            // Salt the input
-            const saltedInput = inputCode + SALT;
-            const encoder = new TextEncoder();
-            const data = encoder.encode(saltedInput);
-
-            // Hash using Web Crypto API
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-
-            // Convert to hex
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-            const isValid = hashHex === AUTH_HASH;
-
-            if (isValid) {
-                this.login();
-            }
-
-            return isValid;
+            const result = await this.confirmationResult.confirm(code);
+            this.user = result.user;
+            this.isAuthenticated = true;
+            storage.setItem(SESSION_KEY, 'true');
+            return true;
         } catch (error) {
-            console.error("Auth Error:", error);
+            console.error("OTP Verification Error:", error);
             return false;
         }
     }
 
-    login() {
-        this.isAuthenticated = true;
-        storage.setItem(SESSION_KEY, 'true');
-        storage.setItem(EXPIRY_KEY, (Date.now() + SESSION_DURATION).toString());
-    }
-
-    logout() {
-        this.isAuthenticated = false;
-        storage.removeItem(SESSION_KEY);
-        storage.removeItem(EXPIRY_KEY);
-        // Optional: Trigger a window reload or callback if needed
-        window.location.reload();
+    async logout() {
+        try {
+            await signOut(auth);
+            this.isAuthenticated = false;
+            this.user = null;
+            storage.removeItem(SESSION_KEY);
+            window.location.reload();
+        } catch (error) {
+            console.error("Logout Error:", error);
+        }
     }
 
     isLoggedIn() {
-        if (!this.isAuthenticated) return false;
-        const expiry = storage.getItem(EXPIRY_KEY);
-        if (!expiry || Date.now() > parseInt(expiry, 10)) {
-            this.logout();
-            return false;
-        }
-        return true;
-    }
-
-    getExpiryTime() {
-        const expiry = storage.getItem(EXPIRY_KEY);
-        return expiry ? parseInt(expiry, 10) : null;
+        // Double check session storage for synchronous UI blocking before async auth loads
+        return this.isAuthenticated || storage.getItem(SESSION_KEY) === 'true';
     }
 }
 

@@ -124,3 +124,8 @@ body {
   animation: shake 0.3s ease-in-out;
   border-color: #ff4444 !important;
 }
+
+/* Hide Google reCAPTCHA Badge */
+.grecaptcha-badge { 
+    visibility: hidden;
+}
