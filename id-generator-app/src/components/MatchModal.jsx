@@ -23,27 +23,13 @@ const MatchModal = ({ isOpen, onClose }) => {
         setIsProcessing(true);
 
         try {
-            // dynamic imports
-            const XLSX = await import('xlsx');
+            const { readExcelFile } = await import('../utils/excelUtils');
+            const { matchAndMerge } = await import('../utils/dataMatcher');
+            const XLSX = await import('xlsx'); // Explicitly needed for writing the file at the end
+
             // 1. Process CFMS Excel
             console.log("Reading CFMS Excel...");
-            const cfmsData = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheetName = workbook.SheetNames[0];
-                        const sheet = workbook.Sheets[firstSheetName];
-                        const json = XLSX.utils.sheet_to_json(sheet);
-                        resolve(json);
-                    } catch (err) {
-                        reject(err);
-                    }
-                };
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(cfmsFile);
-            });
+            const cfmsData = await readExcelFile(cfmsFile);
             console.log("CFMS Data:", cfmsData);
 
             if (!cfmsData || cfmsData.length === 0) {
@@ -54,23 +40,7 @@ const MatchModal = ({ isOpen, onClose }) => {
 
             // 2. Process SAC Excel
             console.log("Reading SAC Excel...");
-            const sacData = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheetName = workbook.SheetNames[0];
-                        const sheet = workbook.Sheets[firstSheetName];
-                        const json = XLSX.utils.sheet_to_json(sheet);
-                        resolve(json);
-                    } catch (err) {
-                        reject(err);
-                    }
-                };
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(sacFile);
-            });
+            const sacData = await readExcelFile(sacFile);
             console.log("SAC Data:", sacData);
 
             // 3. Match and Merge

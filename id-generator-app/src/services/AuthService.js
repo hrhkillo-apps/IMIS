@@ -68,7 +68,7 @@ class AuthService {
         if (!window.recaptchaVerifier) {
             window.recaptchaVerifier = new RecaptchaVerifier(auth, elementId, {
                 'size': 'invisible',
-                'callback': (response) => {
+                'callback': () => {
                     // reCAPTCHA solved, allow signInWithPhoneNumber.
                     // console.log("Recaptcha verified");
                 }
