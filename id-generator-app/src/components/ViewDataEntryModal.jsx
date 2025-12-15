@@ -86,7 +86,12 @@ const ViewDataEntryModal = ({ isOpen, onClose, entries = [], onEdit, onDelete })
                 entry.accountNumber
             ]);
 
-            doc.text("Data Entries List", 14, 15);
+            // doc.text("Data Entries List", 14, 15);
+
+            // Add System Generated Date
+            doc.setFontSize(10);
+            const dateStr = new Date().toLocaleDateString();
+            doc.text(`System Generated on: ${dateStr}`, 14, 15);
 
             // Use autoTable as a function passing the doc instance
             autoTable(doc, {

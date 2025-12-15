@@ -34,18 +34,18 @@ export const generateVendorPdf = (data, vendorName, reportMode) => {
         format: 'a4'
     });
 
-    // 1. Dynamic Title
-    let title = `Commitment Analysis: ${vendorName}`;
-    if (reportMode === 'sac') title = `Proposed Payments: ${vendorName}`;
-    else if (reportMode === 'cfms') title = `Credited Payments: ${vendorName}`;
-    else if (reportMode === 'both') title = `Commitment Status Report: ${vendorName}`;
+    // 1. Dynamic Title Removed as per request
+    // let title = `Commitment Analysis: ${vendorName}`;
+    // if (reportMode === 'sac') title = `Proposed Payments: ${vendorName}`;
+    // else if (reportMode === 'cfms') title = `Credited Payments: ${vendorName}`;
+    // else if (reportMode === 'both') title = `Commitment Status Report: ${vendorName}`;
 
-    doc.setFontSize(16);
-    doc.text(title, 14, 20);
+    // doc.setFontSize(16);
+    // doc.text(title, 14, 20);
 
     doc.setFontSize(10);
     const dateStr = new Date().toLocaleDateString();
-    doc.text(`Generated on: ${dateStr}`, 14, 28);
+    doc.text(`System Generated on: ${dateStr}`, 14, 28);
 
     if (!data || data.length === 0) {
         doc.text("No data available.", 14, 40);

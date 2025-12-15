@@ -22,6 +22,7 @@ import { useIdGenerator } from './hooks/useIdGenerator';
 import { enableProtection } from './utils/security';
 import { authService } from './services/AuthService';
 import { useDataEntry } from './hooks/useDataEntry';
+import { useInactivityTimer } from './hooks/useInactivityTimer'; // New Hook
 import Footer from './components/Footer';
 
 // Utils & Constants
@@ -67,6 +68,16 @@ function App() {
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true); // STARTING LOADING STATE
+
+  // Auto Logout Hook (10 minutes = 600000ms)
+  const remainingTime = useInactivityTimer(
+    () => {
+      toast.info("Session expired due to inactivity.");
+      authService.logout();
+    },
+    isAuthenticated, // Only active when logged in
+    600000
+  );
 
   // Data Entry State
   const { entries, addEntry, updateEntry, deleteEntry } = useDataEntry();
@@ -384,6 +395,7 @@ function App() {
           onDataEntryClick={handleDataEntryClick}
           onBulkUploadClick={handleBulkUploadClick}
           onViewDataClick={handleViewDataClick}
+          remainingTime={remainingTime}
         />
 
         {!data.length ? (

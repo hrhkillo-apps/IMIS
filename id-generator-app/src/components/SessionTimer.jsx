@@ -2,29 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from '../services/AuthService';
 
-const SessionTimer = () => {
+const SessionTimer = ({ timeLeft }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [timeLeft, setTimeLeft] = useState(null);
 
     useEffect(() => {
+        // Just keep current time ticking
         const timer = setInterval(() => {
-            const now = new Date();
-            setCurrentTime(now);
-
-            const expiry = authService.getExpiryTime();
-            if (expiry) {
-                const remaining = expiry - now.getTime();
-                if (remaining <= 0) {
-                    authService.logout();
-                } else {
-                    setTimeLeft(remaining);
-                }
-            } else {
-                // If no expiry but logged in, maybe just hide or force logout? 
-                // Assuming header only shows if logged in.
-            }
+            setCurrentTime(new Date());
         }, 1000);
-
         return () => clearInterval(timer);
     }, []);
 
