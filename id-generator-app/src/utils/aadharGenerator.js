@@ -55,7 +55,20 @@ export const generateVerhoeff = (num) => {
 };
 
 /**
+ * Generates a single valid Aadhar number (String).
+ * Pure function - collision checks handled by IdService.
+ */
+export const generateValidAadharString = () => {
+    const firstObj = Math.floor(Math.random() * 8) + 2; // 2-9
+    const rest = Math.floor(Math.random() * 10000000000); // 10 digits
+    const base = `${firstObj}${String(rest).padStart(10, '0')}`;
+    const checksum = generateVerhoeff(base);
+    return `${base}${checksum}`;
+};
+
+/**
  * Generates N valid Aadhar numbers, ensuring they don't exist in the provided history.
+ * (Legacy Wrapper - Used if strictly local generation is needed, but we prefer IdService.reserveIds now)
  */
 export const generateValidAadhar = (count, existingIds = new Set()) => {
     const list = [];
@@ -66,12 +79,7 @@ export const generateValidAadhar = (count, existingIds = new Set()) => {
         let generated = null;
 
         do {
-            // Generate 11 random digits
-            const firstObj = Math.floor(Math.random() * 8) + 2; // 2-9
-            const rest = Math.floor(Math.random() * 10000000000); // 10 digits
-            const base = `${firstObj}${String(rest).padStart(10, '0')}`;
-            const checksum = generateVerhoeff(base);
-            const candidate = `${base}${checksum}`;
+            const candidate = generateValidAadharString();
 
             if (!existingIds.has(candidate)) {
                 generated = candidate;

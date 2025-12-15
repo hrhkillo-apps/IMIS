@@ -24,41 +24,36 @@ export const generateName = (namePool) => {
 
 // --- Random Unique ID Generation ---
 
+// --- Random Unique ID Generation ---
+
 /**
- * Generates a random unique ID within a range.
- * Checks against existingSet to prevent collisions.
+ * Generates a random number within a range.
+ * Pure function - collision checks handled by IdService.
  */
-const generateUniqueRandomId = (min, max, existingSet) => {
-  let id;
-  let attempts = 0;
-  const maxAttempts = 1000; // prevent infinite loop
-
-  do {
-    id = Math.floor(Math.random() * (max - min + 1)) + min;
-    attempts++;
-    if (attempts > maxAttempts) {
-      // Should rarely happen with 10-digit space
-      throw new Error("Unable to generate unique ID (keyspace exhausted?)");
-    }
-  } while (existingSet.has(String(id)) || existingSet.has(id)); // Check both string/number
-
-  return id;
+const generateRandomId = (min, max) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
 // Ticket: Random 10-digit starting with 2
-export const generateTicketNumber = (existingIds) => {
-  return generateUniqueRandomId(ID_RANGES.TICKET.MIN, ID_RANGES.TICKET.MAX, existingIds);
+export const generateTicketNumberString = () => {
+  return String(generateRandomId(ID_RANGES.TICKET.MIN, ID_RANGES.TICKET.MAX));
 };
 
 // FTR: Random 10-digit starting with 2
-export const generateFTRNumber = (existingIds) => {
-  return generateUniqueRandomId(ID_RANGES.FTR.MIN, ID_RANGES.FTR.MAX, existingIds);
+export const generateFTRNumberString = () => {
+  return String(generateRandomId(ID_RANGES.FTR.MIN, ID_RANGES.FTR.MAX));
 };
 
 // IMIS (Reg): Random 10-digit starting with 1
-export const generateBeneficiaryRegId = (existingIds) => {
-  return generateUniqueRandomId(ID_RANGES.REG.MIN, ID_RANGES.REG.MAX, existingIds);
+export const generateBeneficiaryRegIdString = () => {
+  return String(generateRandomId(ID_RANGES.REG.MIN, ID_RANGES.REG.MAX));
 };
+
+// Legacy wrappers for backward compatibility (if needed by other components not yet refactored)
+// These effectively do one attempt.
+export const generateTicketNumber = (existingIds) => generateTicketNumberString();
+export const generateFTRNumber = (existingIds) => generateFTRNumberString();
+export const generateBeneficiaryRegId = (existingIds) => generateBeneficiaryRegIdString();
 
 export const validateRow = (row) => {
   if (!row || row.length === 0) return { valid: false, reason: "Empty row" };

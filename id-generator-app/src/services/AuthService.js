@@ -145,6 +145,12 @@ class AuthService {
         // Double check session storage for synchronous UI blocking before async auth loads
         return this.isAuthenticated || storage.getItem(SESSION_KEY) === 'true';
     }
+
+    getExpiryTime() {
+        // Feature not yet fully implemented or relying on Firebase Token
+        // For now, return null to disable local session timer warnings
+        return null;
+    }
 }
 
 // Export singleton

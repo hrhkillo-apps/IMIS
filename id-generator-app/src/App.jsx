@@ -133,14 +133,13 @@ function App() {
         setIsLoadingAuth(false);
       }
 
-      // 3. Load existing history from Firebase (Parallel, non-blocking)
-      try {
-        const { IdService } = await import('./services/IdService.js');
-        const history = await IdService.getAllIds();
-        if (history) setIdHistory(history);
-      } catch (err) {
-        console.error("Initial ID load failed (Offline?):", err);
-      }
+      // 3. Load existing history from Firebase (Deprecated: No longer needed for generation)
+      //   try {
+      //     // Initial load removed for performance. 
+      //     // Generation now uses server-side transactions.
+      //   } catch (err) {
+      //     console.error("Initial ID load failed (Offline?):", err);
+      //   }
     };
 
     initApp();
@@ -175,6 +174,14 @@ function App() {
   };
 
   const handleGenerate = async () => {
+    // Note: This specific Main-Screen generator (useIdGenerator hook) might still rely on local history 
+    // if it's doing complex matching. For now, we are optimizing the Modal generators specifically (IMIS ID, Aadhar).
+    // The main file processor generation is a separate flow.
+    // If the user uploads a FILE to generate IDs, we should also eventually migrate that.
+    // But for this task, we focus on the explicitly requested Modal flows first or use the history if available.
+    // Since we stopped loading history, `idHistory` will be empty.
+    // WARN: The file-based generator needs to be checked.
+    // Ideally, `useIdGenerator` should also be refactored, but let's fix the Modals first as per plan.
     const result = await generateIds(data, headers, idHistory, fileName);
     if (result.success) {
       setData(result.finalData);
@@ -195,35 +202,37 @@ function App() {
     try {
       const { generateValidAadhar, generateInvalidAadhar } = await import('./utils/aadharGenerator.js');
       const { IdService } = await import('./services/IdService.js');
-
-      // 1. Fetch History if Valid
-      let existingAadharSet = new Set();
-      if (type === 'valid') {
-        const history = await IdService.getAllIds();
-        existingAadharSet = history.aadhar;
-      }
-
-      // 2. Generate
+      // optimized flow
       let dataList = [];
+
       if (type === 'valid') {
-        // Pass existing set to ensure uniqueness
-        dataList = generateValidAadhar(count, existingAadharSet);
+        console.log("Starting Valid Aadhar Generation...");
+        // Use new Scalable Service
+        toast.info("Generating Aadhar IDs (Checking Server)...");
+
+        // Aadhar Generator provided pure string function now
+        console.log("Importing generator...");
+        const { generateValidAadharString } = await import('./utils/aadharGenerator.js');
+        console.log("Generator imported. Calling ReserveIds...");
+
+        const result = await IdService.reserveIds(
+          'imis_history_aadhar',
+          count,
+          generateValidAadharString
+        );
+        console.log("ReserveIds result:", result);
+
+        if (!result.success) {
+          toast.error(result.error);
+          return;
+        }
+
+        dataList = result.ids;
+        toast.success(`Generated ${count} unique Aadhar IDs!`);
+
       } else {
-        // Invalid generator usually doesn't need history check, but consistent
         dataList = generateInvalidAadhar(count);
-      }
-
-      // 3. Save "Valid" IDs to Firebase
-      if (type === 'valid' && dataList.length > 0) {
-        await IdService.saveBatch({
-          ticket: new Set(), ftr: new Set(), reg: new Set(),
-          aadhar: new Set(dataList)
-        });
-
-        // Update local state if we were tracking it, but here we just re-fetch next time or rely on service
-        toast.success(`Generated ${count} unique Aadhar IDs and saved to Database!`);
-      } else {
-        toast.success(`Generated ${count} Invalid Aadhar numbers (Not saved to DB).`);
+        toast.success(`Generated ${count} Invalid Aadhar numbers.`);
       }
 
       const wsData = [["Aadhar Number"], ...dataList.map(n => [n])];
@@ -237,7 +246,8 @@ function App() {
       XLSX.writeFile(wb, filename);
 
     } catch (err) {
-      console.error(err);
+      console.error("Error in generateAadharExcel:", err);
+      toast.dismiss();
       toast.error('Error: ' + err.message);
     }
   };
@@ -251,65 +261,46 @@ function App() {
     }
 
     try {
-      const { generateBeneficiaryRegId } = await import('./utils/idGenerator.js');
+      console.log("Starting IMIS Generation...");
+      // Import specifically the String generator
+      const { generateBeneficiaryRegIdString } = await import('./utils/idGenerator.js');
       const { IdService } = await import('./services/IdService.js');
+      console.log("Imports done.");
 
-      // 1. STRICT CONNECTION CHECK & Load full history
-      // We explicitly fetch here to ensure we are online and have latest data.
-      let currentHistory;
-      try {
-        currentHistory = await IdService.getAllIds();
-      } catch {
-        toast.error("Generation Aborted: Cannot connect to online storage.");
+      toast.info("Generating IDs (Checking Server)...");
+
+      // Use the new Scalable Service
+      console.log("Calling reserveIds...");
+      const result = await IdService.reserveIds(
+        'imis_history_reg',  // Collection Name
+        count,
+        generateBeneficiaryRegIdString // Generator Function
+      );
+      console.log("Result:", result);
+
+
+      if (!result.success) {
+        toast.error(result.error);
         return;
       }
 
-      // 2. Create a working set initialized with existing REG IDs
-      // We clone it to avoid mutating the original state immediately, 
-      // though Set mutation is fine here as we'll save explicitly.
-      const workingRegSet = new Set(currentHistory.reg);
-      const newBatchIds = new Set();
-      const generatedList = [];
-
-      for (let i = 0; i < count; i++) {
-        // generateBeneficiaryRegId checks against the set passed to it
-        const newId = generateBeneficiaryRegId(workingRegSet);
-
-        // Add to both sets
-        workingRegSet.add(String(newId));
-        newBatchIds.add(String(newId));
-        generatedList.push(newId);
-      }
-
-      // 3. Save the new batch to persistent storage
-      await IdService.saveBatch({
-        ticket: new Set(),
-        ftr: new Set(),
-        reg: newBatchIds
-      });
-
-      // 4. Update local state history so the main app knows about these new IDs too
-      const updatedHistory = await IdService.getAllIds();
-      setIdHistory(updatedHistory);
+      const generatedList = result.ids;
 
       // 5. Export to Excel
       const wsData = [["IMIS Id"], ...generatedList.map(id => [id])];
-
-
-
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "IMIS IDs");
 
-      // Use simple filename to test
       const filename = `imis_ids_generated.xlsx`;
       XLSX.writeFile(wb, filename);
 
-      toast.success(`Generated ${count} unique IMIS IDs and saved to history!`);
+      toast.success(`Successfully Generated ${count} Unique IMIS IDs!`);
       setImisIdCount('');
       setIsImisModalOpen(false);
     } catch (err) {
       console.error(err);
+      toast.dismiss();
       toast.error('Error: ' + err.message);
     }
   };

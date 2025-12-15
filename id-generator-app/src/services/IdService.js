@@ -1,5 +1,5 @@
 import { db } from '../firebase.config';
-import { collection, doc, getDocs, writeBatch } from "firebase/firestore";
+import { collection, doc, getDocs, writeBatch, runTransaction } from "firebase/firestore";
 
 const COLLECTIONS = {
     TICKET: 'imis_history_ticket',
@@ -9,8 +9,58 @@ const COLLECTIONS = {
 };
 
 export const IdService = {
-    // Fetch all existing IDs to prime the generator cache
+    // Check and reserve a batch of IDs atomically
+    // generatorFn: () => string (returns a single random ID)
+    reserveIds: async (collectionName, count, generatorFn) => {
+        const MAX_RETRIES = 5;
+        let attempt = 0;
+
+        while (attempt < MAX_RETRIES) {
+            try {
+                // 1. Generate Candidates
+                const candidates = new Set();
+                while (candidates.size < count) {
+                    candidates.add(String(generatorFn()));
+                }
+                const candidateArray = Array.from(candidates);
+
+                await runTransaction(db, async (transaction) => {
+                    // 2. Read phase: Check all candidates
+                    const refs = candidateArray.map(id => doc(db, collectionName, id));
+                    const snapshots = await Promise.all(refs.map(ref => transaction.get(ref)));
+
+                    const existing = snapshots.filter(snap => snap.exists());
+                    if (existing.length > 0) {
+                        throw new Error("COLLISION"); // Trigger retry
+                    }
+
+                    // 3. Write phase: Create all
+                    refs.forEach(ref => {
+                        transaction.set(ref, { createdAt: new Date() });
+                    });
+                });
+
+                // If we get here, transaction succeeded
+                return { success: true, ids: candidateArray };
+
+            } catch (error) {
+                if (error.message === "COLLISION") {
+                    console.warn(`Batch generation collision (Attempt ${attempt + 1}). Retrying...`);
+                    attempt++;
+                    continue;
+                }
+                // Real error
+                console.error("Transaction failed:", error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        return { success: false, error: "Failed to generate unique IDs after multiple retries. System busy or saturated." };
+    },
+
+    // Legacy: Fetch all existing IDs (Keep for now if visuals need it, but warn)
     getAllIds: async () => {
+        console.warn("Fetching ALL IDs is deprecated for generation logic. Use reserveIds instead.");
         try {
             const history = {
                 ticket: new Set(),
@@ -34,15 +84,13 @@ export const IdService = {
             return history;
         } catch (error) {
             console.error("ID Fetch Error:", error);
-            // With persistence enabled, this usually only throws if permission denied or critical failure.
-            // If offline, getDocs should return cached data or wait.
-            // We'll re-throw for the UI to decide whether to block or warn.
-            throw new Error("Could not fetch ID history. Ensure you are online for first run or have cached data.");
+            return null; // Don't throw, just return null so app doesn't crash
         }
     },
 
-    // Save a batch of IDs (Transaction/Batch write)
+    // Save batch helper (Direct write without check - Use reserveIds for safety)
     saveBatch: async (newIds) => {
+        // ... Keeping for backward compatibility if needed, but reserveIds replaces the core use case
         try {
             const batch = writeBatch(db);
 
@@ -60,7 +108,6 @@ export const IdService = {
                 const ref = doc(db, COLLECTIONS.REG, String(id));
                 batch.set(ref, { createdAt: new Date() });
             });
-
             newIds.aadhar?.forEach(id => {
                 const ref = doc(db, COLLECTIONS.AADHAR, String(id));
                 batch.set(ref, { createdAt: new Date() });
